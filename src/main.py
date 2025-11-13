@@ -1,7 +1,9 @@
 import sys
+
 from dotenv import load_dotenv
 from google.genai import Client as GoogleClient
-from utils import print_pucky_header, Spinner
+
+from utils import Spinner, print_pucky_header
 
 load_dotenv()
 
@@ -31,7 +33,8 @@ def main():
     print_pucky_header()
 
     # Create a client (for Gemini Developer API)
-    # Make sure to set GOOGLE_API_KEY environment variable (automatically loaded from .env file)
+    # Make sure to set GOOGLE_API_KEY environment variable
+    # (automatically loaded from .env file)
     try:
         google_client = GoogleClient()
     except Exception as e:
@@ -45,11 +48,14 @@ def main():
     try:
         response = google_client.models.generate_content(
             model="gemini-2.5-flash-lite",
-            contents="Hello! Introduce yourself briefly as Pucky, a helpful coding agent.",
+            contents=(
+                "Hello! Introduce yourself briefly as Pucky, a helpful coding agent."
+            ),
         )
         print_response(response.text)
 
-        # I don't know if it's useful to add the initial greeting to the conversation history
+        # I don't know if it's useful to add the initial greeting
+        # to the conversation history
         # conversation_history.append({"role": "assistant", "content": response.text})
     except Exception as e:
         print(f"❌ Error connecting to API: {e}")
@@ -85,16 +91,16 @@ def main():
             # Show spinner while generating response
             spinner = Spinner("🐤 Pucky is thinking")
             spinner.start()
-            
+
             # Get response from the model
             response = google_client.models.generate_content(
                 model="gemini-2.5-flash-lite",
                 contents=contents,
             )
-            
+
             spinner.stop()
             spinner = None
-            
+
             response_text = response.text
             print_response(response_text)
 
