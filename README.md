@@ -2,6 +2,8 @@
 
 A tiny coding agent with minimal dependencies 🐤.
 
+<img width="819" height="588" alt="image" src="https://github.com/user-attachments/assets/04204f1e-7344-4695-8c62-c1d99081da1c" />
+
 If you want to understand the general workflow of a coding agent without too much abstraction and with an easy to read language, then this is for you 🫵.
 
 Otherwise go read [codex](https://github.com/openai/codex/tree/main/codex-rs) rust repository.
