@@ -3,16 +3,13 @@ import sys
 from google.genai import Client as GoogleClient
 
 from tools import (
-    create_directory,
-    delete_file,
-    read_file,
-    write_file,
+    execute_tool_calls,
+    parse_tool_calls,
 )
 from utils import (
     Spinner,
     extract_text_without_tool_calls,
     get_user_input,
-    parse_tool_calls,
     print_response,
 )
 
@@ -141,67 +138,7 @@ def run_agent(client: GoogleClient) -> None:
             text_without_tools = extract_text_without_tool_calls(response_text)
 
             # Execute tool calls if any
-            tool_results = []
-            if tool_calls:
-                # Map tool types to their functions
-                tool_map = {
-                    "read_file": read_file,
-                    "write_file": write_file,
-                    "delete_file": delete_file,
-                    "create_directory": create_directory,
-                }
-
-                # Print operations that will be performed
-                print("\n🔧 Operations to perform:")
-                for tool_call in tool_calls:
-                    tool_type = tool_call["type"]
-                    parameters = tool_call["parameters"]
-
-                    # Format operation description
-                    if tool_type == "read_file":
-                        file_path = parameters.get("file_path", "unknown")
-                        print(f"  📖 Reading file: {file_path}")
-                    elif tool_type == "write_file":
-                        file_path = parameters.get("file_path", "unknown")
-                        print(f"  ✏️  Writing into file: {file_path}")
-                    elif tool_type == "delete_file":
-                        file_path = parameters.get("file_path", "unknown")
-                        print(f"  🗑️  Deleting file: {file_path}")
-                    elif tool_type == "create_directory":
-                        dir_path = parameters.get("dir_path", "unknown")
-                        print(f"  📁 Creating directory: {dir_path}")
-                    else:
-                        print(f"  ❓ Unknown operation: {tool_type}")
-                print()
-
-                for tool_call in tool_calls:
-                    tool_type = tool_call["type"]
-                    parameters = tool_call["parameters"]
-
-                    if tool_type not in tool_map:
-                        result = (
-                            f"Error: Unknown tool type '{tool_type}'. "
-                            f"Available tools: {', '.join(tool_map.keys())}"
-                        )
-                    else:
-                        try:
-                            # Execute the tool function
-                            tool_func = tool_map[tool_type]
-                            result = tool_func(**parameters)
-                        except TypeError as e:
-                            result = (
-                                f"Error: Invalid parameters for {tool_type}. "
-                                f"Required parameters not provided. {str(e)}"
-                            )
-                        except Exception as e:
-                            result = f"Error executing {tool_type}: {str(e)}"
-
-                    tool_results.append(
-                        {
-                            "tool_type": tool_type,
-                            "result": result,
-                        }
-                    )
+            tool_results = execute_tool_calls(tool_calls)
 
             # Display the response (text without tool calls)
             if text_without_tools:
