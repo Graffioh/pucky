@@ -2,11 +2,24 @@ import sys
 
 from google.genai import Client as GoogleClient
 
-from utils import Spinner, get_user_input, print_response
+from tools import (
+    create_directory,
+    delete_file,
+    read_file,
+    write_file,
+)
+from utils import (
+    Spinner,
+    extract_text_without_tool_calls,
+    get_user_input,
+    parse_tool_calls,
+    print_response,
+)
 
 SYSTEM_PROMPT = (
     "You are Pucky, a helpful coding agent. "
-    "When you need to use tools to help the user, "
+    "You are really good at programming and problem solving. "
+    "When you need to use tools (edit, create, read, delete) to help the user, "
     "you must wrap your tool calls in XML tags.\n\n"
     "AVAILABLE TOOLS:\n"
     "- read_file: Read the contents of a file\n"
@@ -117,12 +130,102 @@ def run_agent(client: GoogleClient) -> None:
             spinner = None
 
             response_text = response.text
-            print_response(response_text)
+            if response_text is None:
+                print("\n❌ Error: Received empty response from the model.\n")
+                continue
 
-            # TODO: Implement tool calling
+            # Parse tool calls from the response
+            tool_calls = parse_tool_calls(response_text)
+
+            # Extract text without tool calls for display
+            text_without_tools = extract_text_without_tool_calls(response_text)
+
+            # Execute tool calls if any
+            tool_results = []
+            if tool_calls:
+                # Map tool types to their functions
+                tool_map = {
+                    "read_file": read_file,
+                    "write_file": write_file,
+                    "delete_file": delete_file,
+                    "create_directory": create_directory,
+                }
+
+                # Print operations that will be performed
+                print("\n🔧 Operations to perform:")
+                for tool_call in tool_calls:
+                    tool_type = tool_call["type"]
+                    parameters = tool_call["parameters"]
+
+                    # Format operation description
+                    if tool_type == "read_file":
+                        file_path = parameters.get("file_path", "unknown")
+                        print(f"  📖 Reading file: {file_path}")
+                    elif tool_type == "write_file":
+                        file_path = parameters.get("file_path", "unknown")
+                        print(f"  ✏️  Writing into file: {file_path}")
+                    elif tool_type == "delete_file":
+                        file_path = parameters.get("file_path", "unknown")
+                        print(f"  🗑️  Deleting file: {file_path}")
+                    elif tool_type == "create_directory":
+                        dir_path = parameters.get("dir_path", "unknown")
+                        print(f"  📁 Creating directory: {dir_path}")
+                    else:
+                        print(f"  ❓ Unknown operation: {tool_type}")
+                print()
+
+                for tool_call in tool_calls:
+                    tool_type = tool_call["type"]
+                    parameters = tool_call["parameters"]
+
+                    if tool_type not in tool_map:
+                        result = (
+                            f"Error: Unknown tool type '{tool_type}'. "
+                            f"Available tools: {', '.join(tool_map.keys())}"
+                        )
+                    else:
+                        try:
+                            # Execute the tool function
+                            tool_func = tool_map[tool_type]
+                            result = tool_func(**parameters)
+                        except TypeError as e:
+                            result = (
+                                f"Error: Invalid parameters for {tool_type}. "
+                                f"Required parameters not provided. {str(e)}"
+                            )
+                        except Exception as e:
+                            result = f"Error executing {tool_type}: {str(e)}"
+
+                    tool_results.append(
+                        {
+                            "tool_type": tool_type,
+                            "result": result,
+                        }
+                    )
+
+            # Display the response (text without tool calls)
+            if text_without_tools:
+                print_response(text_without_tools)
+
+            # Display tool execution results
+            if tool_results:
+                print("\n🔧 Tool execution results:")
+                for tool_result in tool_results:
+                    print(f"  {tool_result['tool_type']}: {tool_result['result']}")
+                print()
 
             # Add assistant response to history
-            conversation_history.append({"role": "assistant", "content": response_text})
+            # Include tool results in the conversation for context
+            assistant_message = response_text
+            if tool_results:
+                results_text = "\n".join(
+                    [f"{r['tool_type']}: {r['result']}" for r in tool_results]
+                )
+                assistant_message = f"{response_text}\n\nTool results:\n{results_text}"
+
+            conversation_history.append(
+                {"role": "assistant", "content": assistant_message}
+            )
 
         except KeyboardInterrupt:
             if spinner:
