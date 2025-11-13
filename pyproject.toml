@@ -1,0 +1,10 @@
+[project]
+name = "pucky"
+version = "0.1.0"
+description = "A tiny coding agent"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "google-genai",
+    "python-dotenv",
+]
