@@ -6,6 +6,10 @@ If you want to understand the general workflow of a coding agent without too muc
 
 Otherwise go read [codex](https://github.com/openai/codex/tree/main/codex-rs) rust repository.
 
+## Dependencies
+
+- `google-genai`
+
 ## Requirements
 
 - Python >= 3.10
@@ -53,3 +57,7 @@ pucky
 ```
 
 Type 'quit' or 'q' to quit pucky.
+
+## Warning
+
+Right now there is no security check for "dangerous" operations, so **be careful, everything is at your own risk**.
