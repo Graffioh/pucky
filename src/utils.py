@@ -4,9 +4,9 @@ import time
 
 
 def print_pucky_header():
-    """Print the Pucky ASCII art header."""
+    """Print the pucky ASCII art header."""
     pucky_ascii_header = r"""
-            _       _ |     
+             _       _ |     
             |_) |_| (_ |< \/ 
             |             /  
                    -                       
@@ -37,10 +37,31 @@ def print_pucky_header():
     print("Type 'quit' or 'q' to end the conversation\n")
 
 
+def get_user_input(prompt="You: "):
+    """Get input from the user, handling multi-line input."""
+    lines = []
+    try:
+        while True:
+            line = input(prompt if not lines else "... ")
+            if not line.strip() and lines:
+                break
+            lines.append(line)
+            if line.strip() and not line.endswith("\\"):
+                break
+    except (EOFError, KeyboardInterrupt):
+        return None
+    return "\n".join(lines).strip()
+
+
+def print_response(text):
+    """Print the agent's response with nice formatting."""
+    print(f"\n🐤 pucky: {text}\n")
+
+
 class Spinner:
     """A simple ASCII spinner for loading indicators."""
 
-    def __init__(self, message="🐤 Pucky is thinking"):
+    def __init__(self, message="🐤 pucky is thinking"):
         self.message = message
         self.spinner_chars = "|/-\\"
         self.stop_spinner = False

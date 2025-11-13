@@ -1,6 +1,8 @@
 # pucky
 
-A tiny coding agent.
+A tiny coding agent with minimal dependencies.
+
+If you want to understand the general workflow of a coding agent without too much abstraction and with an easy to read language (otherwise go read [codex](https://github.com/openai/codex/tree/main/codex-rs) rust repository).
 
 ## Setup
 
