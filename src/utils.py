@@ -1,7 +1,31 @@
+import os
 import re
 import sys
 import threading
 import time
+from pathlib import Path
+
+
+def load_env_file(env_path: str | Path = ".env") -> None:
+    """Load environment variables from a .env file."""
+    env_file = Path(env_path)
+    if not env_file.exists():
+        return
+
+    with env_file.open() as f:
+        for line in f:
+            line = line.strip()
+            # Skip empty lines and comments
+            if not line or line.startswith("#"):
+                continue
+            # Parse KEY=VALUE format
+            if "=" in line:
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip().strip('"').strip("'")
+                # Only set if not already in environment
+                if key and key not in os.environ:
+                    os.environ[key] = value
 
 
 def print_pucky_header():

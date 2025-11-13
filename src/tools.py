@@ -15,12 +15,12 @@ class ToolResult(TypedDict):
 class ToolCall(TypedDict):
     """Structure of a parsed tool call."""
 
-    type: str
+    call_type: str
     parameters: dict[str, str]
     raw_xml: str
 
 
-def read_file(file_path: str) -> str:
+def _read_file(file_path: str) -> str:
     """Read a file and return its contents."""
     try:
         path = Path(file_path)
@@ -33,7 +33,7 @@ def read_file(file_path: str) -> str:
         return f"Error reading file: {str(e)}"
 
 
-def write_file(file_path: str, content: str) -> str:
+def _write_file(file_path: str, content: str) -> str:
     """Write content to a file."""
     try:
         path = Path(file_path)
@@ -44,7 +44,7 @@ def write_file(file_path: str, content: str) -> str:
         return f"Error writing file: {str(e)}"
 
 
-def delete_file(file_path: str) -> str:
+def _delete_file(file_path: str) -> str:
     """Delete a file."""
     try:
         path = Path(file_path)
@@ -58,7 +58,7 @@ def delete_file(file_path: str) -> str:
         return f"Error deleting file: {str(e)}"
 
 
-def create_directory(dir_path: str) -> str:
+def _create_directory(dir_path: str) -> str:
     """Create a directory (and parent directories if needed)."""
     try:
         path = Path(dir_path)
@@ -85,14 +85,6 @@ def parse_tool_calls(text: str) -> list[ToolCall]:
         - 'type': The tool type (e.g., 'read_file', 'write_file')
         - 'parameters': A dict of parameter name-value pairs
         - 'raw_xml': The raw XML string for this tool call
-
-    Example:
-        >>> text = ('I will read the file. <tool_call type="read_file">\\n'
-        ...         '<parameter name="file_path">src/main.py</parameter>\\n'
-        ...         '</tool_call>')
-        >>> parse_tool_calls(text)
-        [{'type': 'read_file', 'parameters': {'file_path': 'src/main.py'},
-        ...  'raw_xml': '...'}]
     """
     tool_calls = []
 
@@ -116,7 +108,7 @@ def parse_tool_calls(text: str) -> list[ToolCall]:
 
         tool_calls.append(
             {
-                "type": tool_type,
+                "call_type": tool_type,
                 "parameters": parameters,
                 "raw_xml": raw_xml,
             }
@@ -126,20 +118,28 @@ def parse_tool_calls(text: str) -> list[ToolCall]:
 
 
 def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
+    """Execute a list of tool calls and return the results.
+
+    Args:
+        tool_calls: A list of tool calls to execute
+
+    Returns:
+        A list of tool results
+    """
     tool_results = []
     if tool_calls:
         # Map tool types to their functions
         tool_map = {
-            "read_file": read_file,
-            "write_file": write_file,
-            "delete_file": delete_file,
-            "create_directory": create_directory,
+            "read_file": _read_file,
+            "write_file": _write_file,
+            "delete_file": _delete_file,
+            "create_directory": _create_directory,
         }
 
         # Print operations that will be performed
         print("\n🔧 Operations to perform:")
         for tool_call in tool_calls:
-            tool_type = tool_call["type"]
+            tool_type = tool_call["call_type"]
             parameters = tool_call["parameters"]
 
             # Format operation description
@@ -160,7 +160,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
         print()
 
         for tool_call in tool_calls:
-            tool_type = tool_call["type"]
+            tool_type = tool_call["call_type"]
             parameters = tool_call["parameters"]
 
             if tool_type not in tool_map:

@@ -59,6 +59,8 @@ SYSTEM_PROMPT = (
     "5. Always be helpful, clear, and explain your actions to the user"
 )
 
+GOOGLE_AGENT_MODEL = "gemini-2.5-flash-lite"
+
 
 def run_agent(client: GoogleClient) -> None:
     conversation_history = []
@@ -74,7 +76,7 @@ def run_agent(client: GoogleClient) -> None:
             "a helpful coding agent and tell the user what you can do."
         )
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model=GOOGLE_AGENT_MODEL,
             contents=initial_message,
         )
         print_response(response.text)
@@ -108,7 +110,7 @@ def run_agent(client: GoogleClient) -> None:
 
         # Build conversation context with system prompt
         contents = [SYSTEM_PROMPT]
-        for msg in conversation_history[-10:]:  # Keep last 10 messages for context
+        for msg in conversation_history[-18:]:  # Keep last 18 messages for context
             contents.append(msg["content"])
 
         spinner = None
@@ -119,7 +121,7 @@ def run_agent(client: GoogleClient) -> None:
 
             # Get response from the model
             response = client.models.generate_content(
-                model="gemini-2.5-flash-lite",
+                model=GOOGLE_AGENT_MODEL,
                 contents=contents,
             )
 
@@ -134,11 +136,11 @@ def run_agent(client: GoogleClient) -> None:
             # Parse tool calls from the response
             tool_calls = parse_tool_calls(response_text)
 
-            # Extract text without tool calls for display
-            text_without_tools = extract_text_without_tool_calls(response_text)
-
             # Execute tool calls if any
             tool_results = execute_tool_calls(tool_calls)
+
+            # Extract text without tool calls for display
+            text_without_tools = extract_text_without_tool_calls(response_text)
 
             # Display the response (text without tool calls)
             if text_without_tools:
@@ -147,8 +149,21 @@ def run_agent(client: GoogleClient) -> None:
             # Display tool execution results
             if tool_results:
                 print("\n🔧 Tool execution results:")
-                for tool_result in tool_results:
-                    print(f"  {tool_result['tool_type']}: {tool_result['result']}")
+                for i, tool_result in enumerate(tool_results):
+                    tool_type = tool_result["tool_type"]
+                    result = tool_result["result"]
+                    print(f"  {tool_type}: {result}")
+
+                    # For write_file operations, also show the content that was written
+                    if tool_type == "write_file" and i < len(tool_calls):
+                        tool_call = tool_calls[i]
+                        if tool_call.get("call_type") == "write_file":
+                            content = tool_call.get("parameters", {}).get("content", "")
+                            if content:
+                                print("\n  Content written:")
+                                # Show content with indentation
+                                for line in content.split("\n"):
+                                    print(f"    {line}")
                 print()
 
             # Add assistant response to history

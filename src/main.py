@@ -1,10 +1,9 @@
-from dotenv import load_dotenv
 from google.genai import Client as GoogleClient
 
 from agent import run_agent
-from utils import print_pucky_header
+from utils import load_env_file, print_pucky_header
 
-load_dotenv()
+load_env_file()
 
 
 def main():

@@ -6,6 +6,11 @@ If you want to understand the general workflow of a coding agent without too muc
 
 Otherwise go read [codex](https://github.com/openai/codex/tree/main/codex-rs) rust repository.
 
+## Requirements
+
+- Python >= 3.10
+- Install `uv` if you don't have it already, follow [this](https://docs.astral.sh/uv/getting-started/installation/)
+
 ## Setup
 
 1) Clone the repository:
@@ -13,24 +18,22 @@ Otherwise go read [codex](https://github.com/openai/codex/tree/main/codex-rs) ru
 git clone https://github.com/Graffioh/pucky.git
 ```
 
-2) Install `uv` if you don't have it already, follow [this](https://docs.astral.sh/uv/getting-started/installation/)
-
-3) Create virtual environment:
+2) Create virtual environment:
 ```bash
 uv venv
 ```
 
-4) Install packages:
+3) Install packages:
 ```bash
 uv pip install .
 ```
 
-5) Create a `.env` file with your Google API key (can be obtained [here](https://aistudio.google.com/api-keys)):
+4) Create a `.env` file with your Google API key (can be obtained [here](https://aistudio.google.com/api-keys)):
 ```bash
 echo "GOOGLE_API_KEY=<your_api_key>" > .env
 ```
 
-6) Run the agent:
+5) Run the agent:
 ```bash
 uv run src/main.py
 ```
