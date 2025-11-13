@@ -6,9 +6,21 @@ import time
 from pathlib import Path
 
 
-def load_env_file(env_path: str | Path = ".env") -> None:
-    """Load environment variables from a .env file."""
-    env_file = Path(env_path)
+def load_env_file(env_path: str | Path | None = None) -> None:
+    """Load environment variables from a .env file.
+
+    Always looks for .env file in the pucky project directory.
+    """
+    if env_path is None:
+        # Get the directory where utils.py is located (src/)
+        utils_dir = Path(__file__).parent
+
+        # Go up to pucky directory (src/ -> pucky/)
+        pucky_dir = utils_dir.parent
+        env_file = pucky_dir / ".env"
+    else:
+        env_file = Path(env_path)
+
     if not env_file.exists():
         return
 

@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pucky wrapper script - runs pucky from any directory
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Save current working directory (where user ran pucky from)
+USER_CWD="$PWD"
+
+# Activate venv from pucky directory
+cd "$SCRIPT_DIR" || exit 1
+source .venv/bin/activate
+
+# Set PYTHONPATH to include pucky directory so Python can find src module
+export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
+
+# Change back to user's directory and run pucky
+cd "$USER_CWD" || exit 1
+exec python -m src.main "$@"
+
