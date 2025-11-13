@@ -1,8 +1,11 @@
 """File operation tools for the code agent."""
 
+import difflib
 import re
 from pathlib import Path
 from typing import TypedDict
+
+from utils import get_user_input
 
 
 class ToolResult(TypedDict):
@@ -71,6 +74,23 @@ def _create_directory(dir_path: str) -> str:
         return f"Successfully created directory '{dir_path}'"
     except Exception as e:
         return f"Error creating directory: {str(e)}"
+
+
+def _format_operation_description(tool_type: str, parameters: dict[str, str]) -> str:
+    """Return a one-line human description for an operation."""
+    if tool_type == "read_file":
+        file_path = parameters.get("file_path", "unknown")
+        return f"📖 Reading file: {file_path}"
+    if tool_type == "write_file":
+        file_path = parameters.get("file_path", "unknown")
+        return f"✏️  Writing into file: {file_path}"
+    if tool_type == "delete_file":
+        file_path = parameters.get("file_path", "unknown")
+        return f"🗑️  Deleting file: {file_path}"
+    if tool_type == "create_directory":
+        dir_path = parameters.get("dir_path", "unknown")
+        return f"📁 Creating directory: {dir_path}"
+    return f"❓ Unknown operation: {tool_type}"
 
 
 def parse_tool_calls(text: str) -> list[ToolCall]:
@@ -143,25 +163,97 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             parameters = tool_call["parameters"]
 
             # Format operation description
-            if tool_type == "read_file":
-                file_path = parameters.get("file_path", "unknown")
-                print(f"  📖 Reading file: {file_path}")
-            elif tool_type == "write_file":
-                file_path = parameters.get("file_path", "unknown")
-                print(f"  ✏️  Writing into file: {file_path}")
-            elif tool_type == "delete_file":
-                file_path = parameters.get("file_path", "unknown")
-                print(f"  🗑️  Deleting file: {file_path}")
-            elif tool_type == "create_directory":
-                dir_path = parameters.get("dir_path", "unknown")
-                print(f"  📁 Creating directory: {dir_path}")
-            else:
-                print(f"  ❓ Unknown operation: {tool_type}")
+            description = _format_operation_description(tool_type, parameters)
+            print(f"  {description}")
         print()
 
-        for tool_call in tool_calls:
+        total_ops = len(tool_calls)
+
+        for index, tool_call in enumerate(tool_calls, start=1):
             tool_type = tool_call["call_type"]
             parameters = tool_call["parameters"]
+
+            # For anything other than a simple read, ask for confirmation
+            if tool_type != "read_file":
+                while True:
+                    description = _format_operation_description(tool_type, parameters)
+                    print(f"\n❓ Confirm operation {index}/{total_ops}:")
+                    print(f"   {description}")
+
+                    # For write operations, show a preview of the change
+                    if tool_type == "write_file":
+                        file_path = parameters.get("file_path", "unknown")
+                        content = parameters.get("content", "")
+                        path = Path(file_path)
+
+                        if path.exists() and path.is_file():
+                            try:
+                                old_text = path.read_text()
+                            except Exception:
+                                old_text = ""
+
+                            old_lines = old_text.splitlines()
+                            new_lines = content.splitlines()
+
+                            diff_lines = list(
+                                difflib.unified_diff(
+                                    old_lines,
+                                    new_lines,
+                                    fromfile=f"{file_path} (current)",
+                                    tofile=f"{file_path} (new)",
+                                    lineterm="",
+                                )
+                            )
+
+                            print("\n   Preview of changes (unified diff):")
+                            if diff_lines:
+                                for line in diff_lines:
+                                    print(f"     {line}")
+                            else:
+                                print("     (No changes; content is identical.)")
+                            print()
+                        else:
+                            print(
+                                "\n   (File does not exist yet; "
+                                "this will create a new file.)"
+                            )
+                            if content:
+                                print("   Content to be written:")
+                                for line in content.split("\n"):
+                                    print(f"     {line}")
+                                print()
+
+                    answer = get_user_input("   Proceed? [y]es / [n]o / [q]uit: ")
+                    if answer is None:
+                        user_choice = "q"
+                    else:
+                        user_choice = answer.strip().lower()
+
+                    if user_choice in ("y", "yes"):
+                        break
+                    if user_choice in ("n", "no"):
+                        tool_results.append(
+                            {
+                                "tool_type": tool_type,
+                                "result": "Operation skipped by user",
+                            }
+                        )
+                        # Skip execution, go to next tool_call
+                        break
+                    if user_choice in ("q", "quit"):
+                        print("\n⏹️  Stopping remaining operations at your request.\n")
+                        return tool_results
+
+                    print("   Please answer with 'y', 'n', or 'q'.")
+
+                # If the user chose "no", we already added a result
+                # and should skip executing
+                if (
+                    tool_results
+                    and tool_results[-1]["tool_type"] == tool_type
+                    and tool_results[-1]["result"] == "Operation skipped by user"
+                ):
+                    continue
 
             if tool_type not in tool_map:
                 result = (
