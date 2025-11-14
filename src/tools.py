@@ -1,12 +1,18 @@
-"""File operation tools for the code agent."""
+"""Tool execution and orchestration for the code agent."""
 
-import difflib
 import re
 import subprocess
-from pathlib import Path
 from typing import TypedDict
 
-from utils import get_user_input
+from .file import (
+    create_directory,
+    delete_file,
+    read_file,
+    show_file_preview_with_diff,
+    write_file,
+)
+from .scanner import scan_codebase, search_codebase
+from .utils import get_user_input
 
 
 class ToolResult(TypedDict):
@@ -25,56 +31,38 @@ class ToolCall(TypedDict):
 
 
 def _read_file(file_path: str) -> str:
-    """Read a file and return its contents."""
-    try:
-        path = Path(file_path)
-        if not path.exists():
-            return f"Error: File '{file_path}' does not exist."
-        if not path.is_file():
-            return f"Error: '{file_path}' is not a file."
-        return path.read_text()
-    except Exception as e:
-        return f"Error reading file: {str(e)}"
+    """Adapter that delegates to file.read_file."""
+    return read_file(file_path)
 
 
 def _write_file(file_path: str, content: str) -> str:
-    """Write content to a file."""
-    try:
-        path = Path(file_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content)
-        return f"Successfully wrote to '{file_path}'"
-    except Exception as e:
-        return f"Error writing file: {str(e)}"
+    """Adapter that delegates to file.write_file."""
+    return write_file(file_path, content)
 
 
 def _delete_file(file_path: str) -> str:
-    """Delete a file."""
-    try:
-        path = Path(file_path)
-        if not path.exists():
-            return f"Error: File '{file_path}' does not exist."
-        if not path.is_file():
-            return f"Error: '{file_path}' is not a file."
-        path.unlink()
-        return f"Successfully deleted '{file_path}'"
-    except Exception as e:
-        return f"Error deleting file: {str(e)}"
+    """Adapter that delegates to file.delete_file."""
+    return delete_file(file_path)
 
 
 def _create_directory(dir_path: str) -> str:
-    """Create a directory (and parent directories if needed)."""
-    try:
-        path = Path(dir_path)
-        if path.exists():
-            if path.is_dir():
-                return f"Directory '{dir_path}' already exists."
-            else:
-                return f"Error: '{dir_path}' exists but is not a directory."
-        path.mkdir(parents=True, exist_ok=True)
-        return f"Successfully created directory '{dir_path}'"
-    except Exception as e:
-        return f"Error creating directory: {str(e)}"
+    """Adapter that delegates to file.create_directory."""
+    return create_directory(dir_path)
+
+
+def _scan_codebase(root_path: str) -> str:
+    """Adapter that delegates to scanner.scan_codebase."""
+    return scan_codebase(root_path)
+
+
+def _search_codebase(root_path: str, query: str, max_results: str = "80") -> str:
+    """Adapter that delegates to scanner.search_codebase."""
+    return search_codebase(root_path, query, max_results=max_results)
+
+
+def _show_file_preview_with_diff(file_path: str, new_content: str) -> None:
+    """Adapter that delegates to file.show_file_preview_with_diff."""
+    show_file_preview_with_diff(file_path, new_content)
 
 
 def _execute_bash_command(command: str) -> str:
@@ -114,52 +102,6 @@ def _execute_bash_command(command: str) -> str:
         return f"Error executing command: {str(e)}"
 
 
-def _show_file_preview_with_diff(file_path: str, new_content: str) -> None:
-    """Show a unified diff preview for a write operation."""
-    path = Path(file_path)
-
-    if path.exists() and path.is_file():
-        try:
-            old_text = path.read_text()
-        except Exception:
-            old_text = ""
-
-        old_lines = old_text.splitlines()
-        new_lines = new_content.splitlines()
-
-        diff_lines = list(
-            difflib.unified_diff(
-                old_lines,
-                new_lines,
-                fromfile=f"{file_path} (current)",
-                tofile=f"{file_path} (new)",
-                lineterm="",
-            )
-        )
-
-        print("\n   Preview of changes (unified diff):")
-        if diff_lines:
-            for line in diff_lines:
-                # Color added/removed lines similar to GitHub (green/red)
-                if line.startswith("+") and not line.startswith("+++"):
-                    colored = f"\033[32m{line}\033[0m"
-                elif line.startswith("-") and not line.startswith("---"):
-                    colored = f"\033[31m{line}\033[0m"
-                else:
-                    colored = line
-                print(f"     {colored}")
-        else:
-            print("     (No changes; content is identical.)")
-        print()
-    else:
-        print("\n   (File does not exist yet; this will create a new file.)")
-        if new_content:
-            print("   Content to be written:")
-            for line in new_content.split("\n"):
-                print(f"     {line}")
-            print()
-
-
 def _format_operation_description(tool_type: str, parameters: dict[str, str]) -> str:
     """Return a one-line human description for an operation."""
     if tool_type == "read_file":
@@ -177,6 +119,13 @@ def _format_operation_description(tool_type: str, parameters: dict[str, str]) ->
     if tool_type == "execute_bash_command":
         command = parameters.get("command", "unknown")
         return f"⚡ Executing bash command: {command}"
+    if tool_type == "scan_codebase":
+        root_path = parameters.get("root_path", ".")
+        return f"🗺️  Scanning codebase structure at: {root_path}"
+    if tool_type == "search_codebase":
+        root_path = parameters.get("root_path", ".")
+        query = parameters.get("query", "")
+        return f"🔍 Searching codebase at: {root_path} for: {query!r}"
     return f"❓ Unknown operation: {tool_type}"
 
 
@@ -242,6 +191,8 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             "delete_file": _delete_file,
             "create_directory": _create_directory,
             "execute_bash_command": _execute_bash_command,
+            "scan_codebase": _scan_codebase,
+            "search_codebase": _search_codebase,
         }
 
         # Print operations that will be performed

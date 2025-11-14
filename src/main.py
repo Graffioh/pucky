@@ -1,7 +1,7 @@
 from google.genai import Client as GoogleClient
 
-from agent import run_agent
-from utils import load_env_file, print_pucky_header
+from .agent import run_agent
+from .utils import load_env_file, print_pucky_header
 
 load_env_file()
 

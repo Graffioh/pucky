@@ -2,12 +2,12 @@ import sys
 
 from google.genai import Client as GoogleClient
 
-from tools import (
+from .tools import (
     execute_tool_calls,
     parse_tool_calls,
     print_tool_results_summary,
 )
-from utils import (
+from .utils import (
     Spinner,
     extract_text_without_tool_calls,
     get_user_input,
@@ -25,7 +25,12 @@ SYSTEM_PROMPT = (
     "- delete_file: Delete a file\n"
     "- create_directory: Create a directory\n"
     "- execute_bash_command: Execute a bash command "
-    "(useful for running tests, checking errors, fixing bugs)\n\n"
+    "(useful for running tests, checking errors, fixing bugs)\n"
+    "- scan_codebase: Intelligently scan the codebase structure "
+    "(skips non-code directories, prioritizes source files and key docs)\n"
+    "- search_codebase: Search for a text query across the codebase in a "
+    "targeted way (skips non-code directories, only scans text/code files, "
+    "limits large files and caps total matches)\n\n"
     "TOOL CALL FORMAT:\n"
     "When you need to use a tool, wrap it in XML tags like this:\n\n"
     '<tool_call type="TOOL_NAME">\n'
@@ -54,6 +59,16 @@ SYSTEM_PROMPT = (
     "To execute a bash command:\n"
     '<tool_call type="execute_bash_command">\n'
     '<parameter name="command">python -m pytest tests/</parameter>\n'
+    "</tool_call>\n\n"
+    "To scan the codebase (get a high-level map of files and directories):\n"
+    '<tool_call type="scan_codebase">\n'
+    '<parameter name="root_path">.</parameter>\n'
+    "</tool_call>\n\n"
+    "To search inside the codebase without reading every file:\n"
+    '<tool_call type="search_codebase">\n'
+    '<parameter name="root_path">.</parameter>\n'
+    '<parameter name="query">function_name_or_keyword</parameter>\n'
+    '<parameter name="max_results">80</parameter>\n'
     "</tool_call>\n\n"
     " "
     "IMPORTANT RULES:\n"
