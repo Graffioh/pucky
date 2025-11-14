@@ -58,8 +58,14 @@ cd /path/to/your/project
 pucky
 ```
 
+Ask pucky to read/edit/create/remove files, then "y" to accept / "n" to decline.
+
 Type 'quit' or 'q' to quit pucky.
 
 ## Warning
 
-Right now there is no security check for "dangerous" operations, so **be careful, everything is at your own risk**.
+Right now there is no security check for "dangerous" operations, so **be careful, everything is at your own risk!!!**.
+
+## Feedback
+
+For feedbacks, DM me on [X](https://x.com/graffioh).
