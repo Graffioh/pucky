@@ -2,6 +2,7 @@
 
 import difflib
 import re
+import subprocess
 from pathlib import Path
 from typing import TypedDict
 
@@ -76,6 +77,43 @@ def _create_directory(dir_path: str) -> str:
         return f"Error creating directory: {str(e)}"
 
 
+def _execute_bash_command(command: str) -> str:
+    """Execute a bash command and return the output."""
+    try:
+        # Execute the command using subprocess
+        # Use shell=True to allow bash commands, but be careful with user input
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 minute timeout
+        )
+
+        output_parts = []
+
+        # Add exit code
+        if result.returncode != 0:
+            output_parts.append(f"Exit code: {result.returncode}")
+
+        # Add stdout if present
+        if result.stdout:
+            output_parts.append(f"Output:\n{result.stdout}")
+
+        # Add stderr if present
+        if result.stderr:
+            output_parts.append(f"Error output:\n{result.stderr}")
+
+        if not output_parts:
+            return "Command executed successfully (no output)"
+
+        return "\n".join(output_parts)
+    except subprocess.TimeoutExpired:
+        return "Error: Command timed out after 5 minutes"
+    except Exception as e:
+        return f"Error executing command: {str(e)}"
+
+
 def _show_file_preview_with_diff(file_path: str, new_content: str) -> None:
     """Show a unified diff preview for a write operation."""
     path = Path(file_path)
@@ -136,6 +174,9 @@ def _format_operation_description(tool_type: str, parameters: dict[str, str]) ->
     if tool_type == "create_directory":
         dir_path = parameters.get("dir_path", "unknown")
         return f"📁 Creating directory: {dir_path}"
+    if tool_type == "execute_bash_command":
+        command = parameters.get("command", "unknown")
+        return f"⚡ Executing bash command: {command}"
     return f"❓ Unknown operation: {tool_type}"
 
 
@@ -200,6 +241,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             "write_file": _write_file,
             "delete_file": _delete_file,
             "create_directory": _create_directory,
+            "execute_bash_command": _execute_bash_command,
         }
 
         # Print operations that will be performed
@@ -220,6 +262,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             parameters = tool_call["parameters"]
 
             # For anything other than a simple read, ask for confirmation
+            # Bash commands always require confirmation for security
             if tool_type != "read_file":
                 while True:
                     description = _format_operation_description(tool_type, parameters)

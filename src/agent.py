@@ -22,7 +22,9 @@ SYSTEM_PROMPT = (
     "- read_file: Read the contents of a file\n"
     "- write_file: Write content to a file\n"
     "- delete_file: Delete a file\n"
-    "- create_directory: Create a directory\n\n"
+    "- create_directory: Create a directory\n"
+    "- execute_bash_command: Execute a bash command "
+    "(useful for running tests, checking errors, fixing bugs)\n\n"
     "TOOL CALL FORMAT:\n"
     "When you need to use a tool, wrap it in XML tags like this:\n\n"
     '<tool_call type="TOOL_NAME">\n'
@@ -48,6 +50,10 @@ SYSTEM_PROMPT = (
     '<tool_call type="create_directory">\n'
     '<parameter name="dir_path">new_folder</parameter>\n'
     "</tool_call>\n\n"
+    "To execute a bash command:\n"
+    '<tool_call type="execute_bash_command">\n'
+    '<parameter name="command">python -m pytest tests/</parameter>\n'
+    "</tool_call>\n\n"
     " "
     "IMPORTANT RULES:\n"
     "1. Always use XML tags when you need to call a tool\n"
@@ -59,7 +65,7 @@ SYSTEM_PROMPT = (
     "5. Always be helpful, clear, and explain your actions to the user"
 )
 
-GOOGLE_AGENT_MODEL = "gemini-2.5-flash-lite"
+GOOGLE_AGENT_MODEL = "gemini-flash-latest"
 
 
 def run_agent(client: GoogleClient) -> None:
