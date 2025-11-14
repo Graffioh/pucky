@@ -1,2 +1,1 @@
-"""Pucky - A tiny coding agent."""
-
+"""pucky - A tiny coding agent."""

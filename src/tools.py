@@ -212,9 +212,13 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             tool_type = tool_call["call_type"]
             parameters = tool_call["parameters"]
 
-            # For anything other than a simple read, ask for confirmation
+            # Execute read-only operations immediately without confirmation
+            # These are: read_file, scan_codebase, search_codebase
+            read_only_ops = {"read_file", "scan_codebase", "search_codebase"}
+
+            # Otherwise, ask for confirmation
             # Bash commands always require confirmation for security
-            if tool_type != "read_file":
+            if tool_type not in read_only_ops:
                 while True:
                     description = _format_operation_description(tool_type, parameters)
                     print(f"\n❓ Confirm operation {index}/{total_ops}:")

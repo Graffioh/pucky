@@ -15,7 +15,7 @@ from .utils import (
 )
 
 SYSTEM_PROMPT = (
-    "You are Pucky, a helpful coding agent. "
+    "You are pucky, a helpful coding agent. "
     "You are really good at programming and problem solving. "
     "When you need to use tools (edit, create, read, delete) to help the user, "
     "you must wrap your tool calls in XML tags.\n\n"
@@ -132,67 +132,94 @@ def run_agent(client: GoogleClient) -> None:
         # Add user message to history
         conversation_history.append({"role": "user", "content": user_input})
 
-        # Build conversation context with system prompt
-        contents = [SYSTEM_PROMPT]
-        for msg in conversation_history[-18:]:  # Keep last 18 messages for context
-            contents.append(msg["content"])
+        follow_up_required = True
+        pending_error = False
 
-        spinner = None
-        try:
-            # Show spinner while generating response
-            spinner = Spinner("🐤 Pucky is thinking")
-            spinner.start()
+        while follow_up_required:
+            follow_up_required = False
 
-            # Get response from the model
-            response = client.models.generate_content(
-                model=GOOGLE_AGENT_MODEL,
-                contents=contents,
-            )
+            # Build conversation context with system prompt
+            contents = [SYSTEM_PROMPT]
+            for msg in conversation_history[-18:]:  # Keep last 18 messages for context
+                contents.append(msg["content"])
 
-            spinner.stop()
             spinner = None
+            try:
+                # Show spinner while generating response
+                spinner = Spinner("🐤 Pucky is thinking")
+                spinner.start()
 
-            response_text = response.text
-            if response_text is None:
-                print("\n❌ Error: Received empty response from the model.\n")
-                continue
-
-            # Parse tool calls from the response
-            tool_calls = parse_tool_calls(response_text)
-
-            # Extract text without tool calls for display
-            text_without_tools = extract_text_without_tool_calls(response_text)
-
-            # First, show the assistant's explanation / plan
-            if text_without_tools:
-                print_response(text_without_tools)
-
-            # Then execute tool calls (with confirmations handled in execute_tool_calls)
-            tool_results = execute_tool_calls(tool_calls)
-
-            print_tool_results_summary(tool_results)
-
-            # Add assistant response to history
-            # Include tool results in the conversation for context
-            assistant_message = response_text
-            if tool_results:
-                results_text = "\n".join(
-                    [f"{r['tool_type']}: {r['result']}" for r in tool_results]
+                # Get response from the model
+                response = client.models.generate_content(
+                    model=GOOGLE_AGENT_MODEL,
+                    contents=contents,
                 )
-                assistant_message = f"{response_text}\n\nTool results:\n{results_text}"
 
-            conversation_history.append(
-                {"role": "assistant", "content": assistant_message}
-            )
+                spinner.stop()
+                spinner = None
 
-        except KeyboardInterrupt:
-            if spinner:
-                spinner.stop()
-            print("\n\n⚠️  Interrupted. Type your next message or 'q' to quit.")
-        except Exception as e:
-            if spinner:
-                spinner.stop()
-            print(f"\n❌ Error: {e}\n")
-            # Remove the failed user message from history
+                response_text = response.text
+                if response_text is None:
+                    print("\n❌ Error: Received empty response from the model.\n")
+                    pending_error = True
+                    break
+
+                # Parse tool calls from the response
+                tool_calls = parse_tool_calls(response_text)
+
+                # Extract text without tool calls for display
+                text_without_tools = extract_text_without_tool_calls(response_text)
+
+                # First, show the assistant's explanation / plan
+                if text_without_tools:
+                    print_response(text_without_tools)
+
+                tool_results = []
+                executed_all_tools = True
+
+                if tool_calls:
+                    # Then execute tool calls
+                    # (with confirmations handled in execute_tool_calls)
+                    tool_results = execute_tool_calls(tool_calls)
+                    print_tool_results_summary(tool_results)
+                    executed_all_tools = len(tool_results) == len(tool_calls)
+
+                # Add assistant response to history
+                # Include tool results in the conversation for context
+                assistant_message = response_text
+                if tool_results:
+                    results_text = "\n".join(
+                        [f"{r['tool_type']}: {r['result']}" for r in tool_results]
+                    )
+                    assistant_message = (
+                        f"{response_text}\n\nTool results:\n{results_text}"
+                    )
+
+                conversation_history.append(
+                    {"role": "assistant", "content": assistant_message}
+                )
+
+                # If the assistant used tools and all of them executed,
+                # immediately give it another turn (without waiting for user)
+                if tool_calls and executed_all_tools:
+                    follow_up_required = True
+                else:
+                    break
+
+            except KeyboardInterrupt:
+                if spinner:
+                    spinner.stop()
+                print("\n\n⚠️  Interrupted. Type your next message or 'q' to quit.")
+                pending_error = True
+                break
+            except Exception as e:
+                if spinner:
+                    spinner.stop()
+                print(f"\n❌ Error: {e}\n")
+                pending_error = True
+                break
+
+        if pending_error:
+            # Remove the failed user message from history so the user can retry
             if conversation_history and conversation_history[-1]["role"] == "user":
                 conversation_history.pop()
