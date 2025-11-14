@@ -7,9 +7,6 @@ wheels/
 *.egg-info
 
 .vscode/
-
-# Virtual environments
 .venv
-
-# Environment variables
 .env
+.ruff_cache/

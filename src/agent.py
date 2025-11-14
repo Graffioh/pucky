@@ -5,6 +5,7 @@ from google.genai import Client as GoogleClient
 from tools import (
     execute_tool_calls,
     parse_tool_calls,
+    print_tool_results_summary,
 )
 from utils import (
     Spinner,
@@ -73,18 +74,20 @@ def run_agent(client: GoogleClient) -> None:
 
     # Initial greeting
     try:
-        # Right now only Google models are supported,
-        # may add support for other models later
         # Include system prompt in the first message
         initial_message = (
             f"{SYSTEM_PROMPT}\n\n"
             "Hello! Introduce yourself briefly as pucky, "
             "a helpful coding agent and tell the user what you can do."
         )
+
+        # Right now only Google models are supported,
+        # may add support for other models later
         response = client.models.generate_content(
             model=GOOGLE_AGENT_MODEL,
             contents=initial_message,
         )
+
         print_response(response.text)
 
         # I don't know if it's useful to add the initial greeting
@@ -152,14 +155,7 @@ def run_agent(client: GoogleClient) -> None:
             # Then execute tool calls (with confirmations handled in execute_tool_calls)
             tool_results = execute_tool_calls(tool_calls)
 
-            # Display tool execution results (summary only)
-            if tool_results:
-                print("\n🔧 Tool execution results:")
-                for tool_result in tool_results:
-                    tool_type = tool_result["tool_type"]
-                    result = tool_result["result"]
-                    print(f"  {tool_type}: {result}")
-                print()
+            print_tool_results_summary(tool_results)
 
             # Add assistant response to history
             # Include tool results in the conversation for context

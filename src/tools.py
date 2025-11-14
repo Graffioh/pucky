@@ -87,7 +87,7 @@ def _execute_bash_command(command: str) -> str:
             shell=True,
             capture_output=True,
             text=True,
-            timeout=300,  # 5 minute timeout
+            timeout=180,  # 3 minute timeout
         )
 
         output_parts = []
@@ -333,3 +333,13 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             )
 
     return tool_results
+
+
+def print_tool_results_summary(tool_results: list[ToolResult]) -> None:
+    """Print a summary of the tool results."""
+    print("\n🔧 Tool execution results:")
+    for tool_result in tool_results:
+        tool_type = tool_result["tool_type"]
+        result = tool_result["result"]
+        print(f"  {tool_type}: {result}")
+    print()
