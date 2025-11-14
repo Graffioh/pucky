@@ -76,6 +76,52 @@ def _create_directory(dir_path: str) -> str:
         return f"Error creating directory: {str(e)}"
 
 
+def _show_file_preview_with_diff(file_path: str, new_content: str) -> None:
+    """Show a unified diff preview for a write operation."""
+    path = Path(file_path)
+
+    if path.exists() and path.is_file():
+        try:
+            old_text = path.read_text()
+        except Exception:
+            old_text = ""
+
+        old_lines = old_text.splitlines()
+        new_lines = new_content.splitlines()
+
+        diff_lines = list(
+            difflib.unified_diff(
+                old_lines,
+                new_lines,
+                fromfile=f"{file_path} (current)",
+                tofile=f"{file_path} (new)",
+                lineterm="",
+            )
+        )
+
+        print("\n   Preview of changes (unified diff):")
+        if diff_lines:
+            for line in diff_lines:
+                # Color added/removed lines similar to GitHub (green/red)
+                if line.startswith("+") and not line.startswith("+++"):
+                    colored = f"\033[32m{line}\033[0m"
+                elif line.startswith("-") and not line.startswith("---"):
+                    colored = f"\033[31m{line}\033[0m"
+                else:
+                    colored = line
+                print(f"     {colored}")
+        else:
+            print("     (No changes; content is identical.)")
+        print()
+    else:
+        print("\n   (File does not exist yet; this will create a new file.)")
+        if new_content:
+            print("   Content to be written:")
+            for line in new_content.split("\n"):
+                print(f"     {line}")
+            print()
+
+
 def _format_operation_description(tool_type: str, parameters: dict[str, str]) -> str:
     """Return a one-line human description for an operation."""
     if tool_type == "read_file":
@@ -184,44 +230,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
                     if tool_type == "write_file":
                         file_path = parameters.get("file_path", "unknown")
                         content = parameters.get("content", "")
-                        path = Path(file_path)
-
-                        if path.exists() and path.is_file():
-                            try:
-                                old_text = path.read_text()
-                            except Exception:
-                                old_text = ""
-
-                            old_lines = old_text.splitlines()
-                            new_lines = content.splitlines()
-
-                            diff_lines = list(
-                                difflib.unified_diff(
-                                    old_lines,
-                                    new_lines,
-                                    fromfile=f"{file_path} (current)",
-                                    tofile=f"{file_path} (new)",
-                                    lineterm="",
-                                )
-                            )
-
-                            print("\n   Preview of changes (unified diff):")
-                            if diff_lines:
-                                for line in diff_lines:
-                                    print(f"     {line}")
-                            else:
-                                print("     (No changes; content is identical.)")
-                            print()
-                        else:
-                            print(
-                                "\n   (File does not exist yet; "
-                                "this will create a new file.)"
-                            )
-                            if content:
-                                print("   Content to be written:")
-                                for line in content.split("\n"):
-                                    print(f"     {line}")
-                                print()
+                        _show_file_preview_with_diff(file_path, content)
 
                     answer = get_user_input("   Proceed? [y]es / [n]o / [q]uit: ")
                     if answer is None:
