@@ -71,7 +71,8 @@ def print_pucky_header():
            =:-:.:-:.                 -*                 
 """
     print(pucky_ascii_header)
-    print("Type 'quit' or 'q' to end the conversation\n")
+    print("Type 'quit' or 'q' to end the conversation")
+    print("Type '@help' for async context commands\n")
 
 
 def get_user_input(prompt="You: "):

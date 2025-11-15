@@ -7,13 +7,13 @@ from pathlib import Path
 # Add parent directory to path to import src
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from src.context import scan_codebase, search_codebase
 from src.file import (
     create_directory,
     delete_file,
     read_file,
     write_file,
 )
-from src.scanner import scan_codebase, search_codebase
 from src.tools import _execute_bash_command
 
 

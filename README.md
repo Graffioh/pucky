@@ -64,6 +64,17 @@ Ask pucky to read/edit/create/remove files, then `y` to accept / `n` to decline.
 
 Type `quit` or `q` to quit pucky.
 
+### Async commands (context prep)
+
+While the CLI is running you can execute local commands prefixed with `@` to
+stage context without immediately querying the LLM:
+
+- `@file path/to/file` &mdash; read a file and inline its content into the next prompt
+- `@help` &mdash; list all available async commands
+
+You can chain multiple `@file` commands and then type your actual question. The
+agent will see every staged file before answering.
+
 ## Warning
 
 Right now there is no security check for *dangerous* operations, so **be careful, everything is at your own risk!!!**.

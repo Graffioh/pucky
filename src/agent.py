@@ -2,6 +2,7 @@ import sys
 
 from google.genai import Client as GoogleClient
 
+from .actions import handle_async_action
 from .tools import (
     execute_tool_calls,
     parse_tool_calls,
@@ -122,12 +123,16 @@ def run_agent(client: GoogleClient) -> None:
 
         user_input = user_input.strip()
 
+        if not user_input:
+            continue
+
+        if user_input.startswith("@"):
+            if handle_async_action(user_input, conversation_history):
+                continue
+
         if user_input.lower() in ["quit", "q"]:
             print("\n👋 Goodbye!")
             break
-
-        if not user_input:
-            continue
 
         # Add user message to history
         conversation_history.append({"role": "user", "content": user_input})
@@ -200,7 +205,8 @@ def run_agent(client: GoogleClient) -> None:
                 )
 
                 # If the assistant used tools and all of them executed,
-                # immediately give it another turn (without waiting for user)
+                # immediately give it another turn (without waiting for user).
+                # This is used to execute multiple tool calls in a single response
                 if tool_calls and executed_all_tools:
                     follow_up_required = True
                 else:

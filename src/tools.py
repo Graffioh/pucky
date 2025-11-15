@@ -4,6 +4,7 @@ import re
 import subprocess
 from typing import TypedDict
 
+from .context import scan_codebase, search_codebase
 from .file import (
     create_directory,
     delete_file,
@@ -11,7 +12,6 @@ from .file import (
     show_file_preview_with_diff,
     write_file,
 )
-from .scanner import scan_codebase, search_codebase
 from .utils import get_user_input
 
 
@@ -51,12 +51,12 @@ def _create_directory(dir_path: str) -> str:
 
 
 def _scan_codebase(root_path: str) -> str:
-    """Adapter that delegates to scanner.scan_codebase."""
+    """Adapter that delegates to context.scan_codebase."""
     return scan_codebase(root_path)
 
 
 def _search_codebase(root_path: str, query: str, max_results: str = "80") -> str:
-    """Adapter that delegates to scanner.search_codebase."""
+    """Adapter that delegates to context.search_codebase."""
     return search_codebase(root_path, query, max_results=max_results)
 
 

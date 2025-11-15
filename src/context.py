@@ -1,8 +1,9 @@
-"""Codebase scanning and search utilities for Pucky.
+"""Codebase context management utilities for Pucky.
 
-These functions implement the core logic for:
+These functions implement the core logic for gathering context about the codebase:
 - Getting a high-level view of the project structure
 - Searching for text within code/text files
+- Injecting file contents into conversation context
 
 Via .gitignore patterns, we can ignore directories that are not code related.
 
@@ -383,3 +384,69 @@ def search_codebase(root_path: str, query: str, max_results: int | str = 80) -> 
         footer = []
 
     return "\n".join(header + matches + footer)
+
+
+# Maximum characters for async file staging
+MAX_ASYNC_FILE_CHARS = 60_000
+
+
+def _format_file_block(path: Path, content: str, truncated: bool) -> str:
+    """Return a formatted block that embeds file contents in the convo context."""
+    header = f"<<FILE:{path}>>"
+    footer = f"<<END_FILE:{path}>>"
+    note = (
+        "\n<<NOTE>>Content truncated to first "
+        f"{MAX_ASYNC_FILE_CHARS} characters.<<END_NOTE>>"
+        if truncated
+        else ""
+    )
+    return f"{header}\n{content}\n{footer}{note}"
+
+
+def use_file_for_context(
+    path_str: str, conversation_history: list[dict[str, str]]
+) -> None:
+    """Read a file and append it to the conversation history as context."""
+    if not path_str:
+        print("\nUsage: @file <path-to-file>")
+        return
+
+    path = Path(path_str).expanduser()
+    try:
+        resolved = path.resolve(strict=True)
+    except FileNotFoundError:
+        print(f"\n❌ File '{path}' does not exist.")
+        return
+    except Exception:
+        resolved = path
+
+    if not resolved.is_file():
+        print(f"\n❌ '{resolved}' is not a file.")
+        return
+
+    try:
+        content = resolved.read_text()
+    except UnicodeDecodeError:
+        print(f"\n❌ Could not decode '{resolved}'. Only text files are supported.")
+        return
+    except Exception as exc:
+        print(f"\n❌ Unable to read '{resolved}': {exc}")
+        return
+
+    truncated = False
+    if len(content) > MAX_ASYNC_FILE_CHARS:
+        content = content[:MAX_ASYNC_FILE_CHARS]
+        truncated = True
+
+    conversation_history.append(
+        {
+            "role": "user",
+            "content": _format_file_block(resolved, content, truncated),
+        }
+    )
+
+    note = f" (trimmed to {MAX_ASYNC_FILE_CHARS:,} chars)" if truncated else ""
+    print(
+        f"\n📎 Added '{resolved}'{note} to the next request context.\n"
+        "   Ask your question when you're ready."
+    )
