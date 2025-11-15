@@ -35,6 +35,8 @@ uv venv
 uv pip install .
 ```
 
+(If you want to experiment while changing the code, then use `-e` flag)
+
 4) Add pucky to your PATH (add this to your `~/.zshrc` or `~/.bashrc`) so that you can run it with `pucky` cmd:
 ```bash
 export PATH="$PATH:/path/to/pucky"
@@ -58,13 +60,13 @@ cd /path/to/your/project
 pucky
 ```
 
-Ask pucky to read/edit/create/remove files, then "y" to accept / "n" to decline.
+Ask pucky to read/edit/create/remove files, then `y` to accept / `n` to decline.
 
-Type 'quit' or 'q' to quit pucky.
+Type `quit` or `q` to quit pucky.
 
 ## Warning
 
-Right now there is no security check for "dangerous" operations, so **be careful, everything is at your own risk!!!**.
+Right now there is no security check for *dangerous* operations, so **be careful, everything is at your own risk!!!**.
 
 ## Feedback
 
