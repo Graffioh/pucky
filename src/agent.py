@@ -29,8 +29,8 @@ SYSTEM_PROMPT = (
     "(useful for running tests, checking errors, fixing bugs)\n"
     "- scan_codebase: Intelligently scan the codebase structure "
     "(skips non-code directories, prioritizes source files and key docs)\n"
-    "- search_codebase: Search for a text query across the codebase in a "
-    "targeted way (skips non-code directories, only scans text/code files, "
+    "- grep_search: Search for a text query across the codebase using grep "
+    "(skips non-code directories, only scans text/code files, "
     "limits large files and caps total matches)\n\n"
     "TOOL CALL FORMAT:\n"
     "When you need to use a tool, wrap it in XML tags like this:\n\n"
@@ -66,7 +66,7 @@ SYSTEM_PROMPT = (
     '<parameter name="root_path">.</parameter>\n'
     "</tool_call>\n\n"
     "To search inside the codebase without reading every file:\n"
-    '<tool_call type="search_codebase">\n'
+    '<tool_call type="grep_search">\n'
     '<parameter name="root_path">.</parameter>\n'
     '<parameter name="query">function_name_or_keyword</parameter>\n'
     '<parameter name="max_results">80</parameter>\n'

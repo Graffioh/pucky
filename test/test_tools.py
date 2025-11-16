@@ -7,7 +7,7 @@ from pathlib import Path
 # Add parent directory to path to import src
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.context import scan_codebase, search_codebase
+from src.context import grep_search, scan_codebase
 from src.file import (
     create_directory,
     delete_file,
@@ -121,7 +121,7 @@ def test_scan_codebase():
 
 
 def test_search_codebase():
-    """Test the search_codebase function."""
+    """Test the grep_search function."""
     root_path = get_input("Enter root path (default: '.')") or "."
     query = get_input("Enter search query")
     if not query:
@@ -129,7 +129,7 @@ def test_search_codebase():
         return
     max_results = get_input("Enter max results (default: 80)") or "80"
     print(f"\n🔍 Searching for '{query}' in {root_path}...")
-    result = search_codebase(root_path, query, max_results)
+    result = grep_search(root_path, query, max_results)
     print(result)
 
 

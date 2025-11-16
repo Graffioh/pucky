@@ -26,6 +26,7 @@ def read_file(file_path: str) -> str:
         return f"Error reading file: {str(e)}"
 
 
+# TODO: Change this into edit_file
 def write_file(file_path: str, content: str) -> str:
     """Write content to a file."""
     try:

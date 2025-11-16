@@ -4,7 +4,7 @@ import re
 import subprocess
 from typing import TypedDict
 
-from .context import scan_codebase, search_codebase
+from .context import grep_search, scan_codebase
 from .file import (
     create_directory,
     delete_file,
@@ -55,9 +55,9 @@ def _scan_codebase(root_path: str) -> str:
     return scan_codebase(root_path)
 
 
-def _search_codebase(root_path: str, query: str, max_results: str = "80") -> str:
-    """Adapter that delegates to context.search_codebase."""
-    return search_codebase(root_path, query, max_results=max_results)
+def _grep_search(root_path: str, query: str, max_results: str = "80") -> str:
+    """Adapter that delegates to context.grep_search."""
+    return grep_search(root_path, query, max_results=max_results)
 
 
 def _show_file_preview_with_diff(file_path: str, new_content: str) -> None:
@@ -122,7 +122,7 @@ def _format_operation_description(tool_type: str, parameters: dict[str, str]) ->
     if tool_type == "scan_codebase":
         root_path = parameters.get("root_path", ".")
         return f"🗺️  Scanning codebase structure at: {root_path}"
-    if tool_type == "search_codebase":
+    if tool_type == "grep_search":
         root_path = parameters.get("root_path", ".")
         query = parameters.get("query", "")
         return f"🔍 Searching codebase at: {root_path} for: {query!r}"
@@ -192,7 +192,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             "create_directory": _create_directory,
             "execute_bash_command": _execute_bash_command,
             "scan_codebase": _scan_codebase,
-            "search_codebase": _search_codebase,
+            "grep_search": _grep_search,
         }
 
         # Print operations that will be performed
@@ -213,8 +213,8 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             parameters = tool_call["parameters"]
 
             # Execute read-only operations immediately without confirmation
-            # These are: read_file, scan_codebase, search_codebase
-            read_only_ops = {"read_file", "scan_codebase", "search_codebase"}
+            # These are: read_file, scan_codebase, grep_search
+            read_only_ops = {"read_file", "scan_codebase", "grep_search"}
 
             # Otherwise, ask for confirmation
             # Bash commands always require confirmation for security

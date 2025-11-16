@@ -5,15 +5,20 @@ from __future__ import annotations
 from .context import use_file_for_context
 
 
+def _use_file_for_context(
+    path_str: str, conversation_history: list[dict[str, str]]
+) -> None:
+    """Adapter that delegates to context.use_file_for_context."""
+    use_file_for_context(path_str, conversation_history)
+
+
 def print_async_help() -> None:
     """Print the list of async (local) commands."""
     print(
-        "\n⚙️  Async actions (do not contact the model):\n"
+        "\n⚙️  Async actions (without calling the LLM):\n"
         "  @file <path>   – stage a file so the agent sees its contents next turn\n"
         "  @help          – show this help message\n"
         "\n"
-        "Use these commands to preload context (e.g., multiple files) before you\n"
-        "ask your actual question. After you're ready, type your prompt normally.\n"
     )
 
 
@@ -29,7 +34,7 @@ def handle_async_action(
     arguments = arguments.strip()
 
     if command in {"file", "f"}:
-        use_file_for_context(arguments, conversation_history)
+        _use_file_for_context(arguments, conversation_history)
         return True
 
     if command in {"help", "commands", "?"}:

@@ -7,12 +7,13 @@ These functions implement the core logic for gathering context about the codebas
 
 Via .gitignore patterns, we can ignore directories that are not code related.
 
-`tools.py` exposes them as tools `_scan_codebase` and `_search_codebase`.
+`tools.py` exposes them as tools `_scan_codebase` and `_grep_search`.
 """
 
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 
 import pathspec
@@ -271,9 +272,9 @@ def scan_codebase(root_path: str) -> str:
     return "\n".join(lines)
 
 
-def search_codebase(root_path: str, query: str, max_results: int | str = 80) -> str:
+def grep_search(root_path: str, query: str, max_results: int | str = 80) -> str:
     """
-    Search for a text query inside the codebase without blindly reading all files.
+    Search for a text query inside the codebase using grep.
 
     - Skips common non-code / cache / dependency directories
     - Restricts search to common text/code file types
@@ -300,69 +301,92 @@ def search_codebase(root_path: str, query: str, max_results: int | str = 80) -> 
     except (TypeError, ValueError):
         max_results_int = 80
 
-    # Load .gitignore patterns if available
-    gitignore_spec = _load_gitignore_specs(root)
+    # Build exclude patterns for grep
+    exclude_dirs = list(_DEFAULT_SKIP_DIRS)
+    exclude_patterns = [f"--exclude-dir={d}" for d in exclude_dirs]
 
+    # Build include patterns for file extensions
+    include_patterns = []
+    for ext in _CODE_FILE_EXTENSIONS:
+        include_patterns.extend(["--include", f"*{ext}"])
+
+    # Build grep command
+    # Use -rnIF for recursive search with line numbers, ignoring binary files,
+    # and treating the pattern as a fixed string (not regex)
+    # Use --color=never to avoid ANSI codes
+    grep_cmd = [
+        "grep",
+        "-rnIF",
+        "--color=never",
+        *exclude_patterns,
+        *include_patterns,
+        query,
+        str(root),
+    ]
+
+    try:
+        result = subprocess.run(
+            grep_cmd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            errors="ignore",
+        )
+    except subprocess.TimeoutExpired:
+        return "Error: Grep search timed out after 30 seconds."
+    except FileNotFoundError:
+        return (
+            "Error: 'grep' command not found. "
+            "Please ensure grep is installed and available in PATH."
+        )
+    except Exception as e:
+        return f"Error executing grep: {e}"
+
+    # Parse grep output
+    # Format: path/to/file:line_number:line_content
     matches: list[str] = []
     total_matches = 0
+    per_file_counts: dict[str, int] = {}
     per_file_limit = 5
 
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if not _should_ignore_path(
-                Path(dirpath) / d, root, gitignore_spec, is_dir=True
-            )
-        ]
-
-        for filename in filenames:
-            if total_matches >= max_results_int:
-                break
-
-            path = Path(dirpath) / filename
-            ext = path.suffix.lower()
-
-            # Check if ignored (hardcoded + .gitignore)
-            if _should_ignore_path(path, root, gitignore_spec):
-                continue
-
-            # Skip non-code files by extension
-            if ext and ext not in _CODE_FILE_EXTENSIONS:
-                continue
-
-            try:
-                if path.stat().st_size > 512 * 1024:  # > 512 KB
-                    continue
-            except OSError:
-                continue
-
-            try:
-                with path.open("r", encoding="utf-8", errors="ignore") as f:
-                    lines = f.readlines()
-            except (OSError, UnicodeDecodeError):
-                continue
-
-            file_match_count = 0
-            rel_path = str(path.relative_to(root))
-
-            for idx, line in enumerate(lines, start=1):
-                if (
-                    total_matches >= max_results_int
-                    or file_match_count >= per_file_limit
-                ):
-                    break
-
-                if query in line:
-                    snippet = line.rstrip("\n")
-                    if len(snippet) > 200:
-                        snippet = snippet[:200] + "..."
-                    matches.append(f"{rel_path}:{idx}: {snippet}")
-                    total_matches += 1
-                    file_match_count += 1
-
+    for line in result.stdout.splitlines():
         if total_matches >= max_results_int:
             break
+
+        # Parse grep output: path:line_num:content
+        parts = line.split(":", 2)
+        if len(parts) < 3:
+            continue
+
+        file_path_str, line_num_str, content = parts
+        file_path = Path(file_path_str)
+
+        # Get relative path from root
+        try:
+            rel_path = str(file_path.relative_to(root))
+        except ValueError:
+            # Path is not relative to root, skip
+            continue
+
+        # Check file size limit
+        try:
+            if file_path.stat().st_size > 512 * 1024:  # > 512 KB
+                continue
+        except OSError:
+            continue
+
+        # Limit matches per file
+        if per_file_counts.get(rel_path, 0) >= per_file_limit:
+            continue
+
+        # Format snippet
+        snippet = content.rstrip("\n")
+        if len(snippet) > 200:
+            snippet = snippet[:200] + "..."
+
+        matches.append(f"{rel_path}:{line_num_str}: {snippet}")
+        total_matches += 1
+        per_file_counts[rel_path] = per_file_counts.get(rel_path, 0) + 1
 
     if not matches:
         return f"No matches for '{query}' under '{root}'."
@@ -386,8 +410,8 @@ def search_codebase(root_path: str, query: str, max_results: int | str = 80) -> 
     return "\n".join(header + matches + footer)
 
 
-# Maximum characters for async file staging
-MAX_ASYNC_FILE_CHARS = 60_000
+# Maximum characters for async file staging in conversation history
+MAX_CONTEXT_STAGING_FILE_CHARS = 60_000
 
 
 def _format_file_block(path: Path, content: str, truncated: bool) -> str:
@@ -396,7 +420,7 @@ def _format_file_block(path: Path, content: str, truncated: bool) -> str:
     footer = f"<<END_FILE:{path}>>"
     note = (
         "\n<<NOTE>>Content truncated to first "
-        f"{MAX_ASYNC_FILE_CHARS} characters.<<END_NOTE>>"
+        f"{MAX_CONTEXT_STAGING_FILE_CHARS} characters.<<END_NOTE>>"
         if truncated
         else ""
     )
@@ -434,8 +458,8 @@ def use_file_for_context(
         return
 
     truncated = False
-    if len(content) > MAX_ASYNC_FILE_CHARS:
-        content = content[:MAX_ASYNC_FILE_CHARS]
+    if len(content) > MAX_CONTEXT_STAGING_FILE_CHARS:
+        content = content[:MAX_CONTEXT_STAGING_FILE_CHARS]
         truncated = True
 
     conversation_history.append(
@@ -445,7 +469,9 @@ def use_file_for_context(
         }
     )
 
-    note = f" (trimmed to {MAX_ASYNC_FILE_CHARS:,} chars)" if truncated else ""
+    note = (
+        f" (trimmed to {MAX_CONTEXT_STAGING_FILE_CHARS:,} chars)" if truncated else ""
+    )
     print(
         f"\n📎 Added '{resolved}'{note} to the next request context.\n"
         "   Ask your question when you're ready."
