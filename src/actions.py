@@ -26,9 +26,6 @@ def handle_async_action(
     raw_input: str, conversation_history: list[dict[str, str]]
 ) -> bool:
     """Handle commands that start with '@' without pinging the model."""
-    if not raw_input.startswith("@"):
-        return False
-
     command, _, arguments = raw_input[1:].partition(" ")
     command = command.strip().lower()
     arguments = arguments.strip()

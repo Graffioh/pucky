@@ -16,70 +16,23 @@ from .utils import (
 )
 
 SYSTEM_PROMPT = (
-    "You are pucky, a helpful coding agent. "
-    "You are really good at programming and problem solving. "
-    "When you need to use tools (edit, create, read, delete) to help the user, "
-    "you must wrap your tool calls in XML tags.\n\n"
-    "AVAILABLE TOOLS:\n"
-    "- read_file: Read the contents of a file\n"
-    "- write_file: Write content to a file\n"
-    "- delete_file: Delete a file\n"
-    "- create_directory: Create a directory\n"
-    "- execute_bash_command: Execute a bash command "
-    "(useful for running tests, checking errors, fixing bugs)\n"
-    "- scan_codebase: Intelligently scan the codebase structure "
-    "(skips non-code directories, prioritizes source files and key docs)\n"
-    "- grep_search: Search for a text query across the codebase using grep "
-    "(skips non-code directories, only scans text/code files, "
-    "limits large files and caps total matches)\n\n"
-    "TOOL CALL FORMAT:\n"
-    "When you need to use a tool, wrap it in XML tags like this:\n\n"
+    "You are pucky, a helpful coding agent.\n"
+    "You can use tools to read/write/delete files, create directories, "
+    "run shell commands, and scan or search the codebase.\n\n"
+    "Tools and their parameters:\n"
+    "- read_file(file_path)\n"
+    "- write_file(file_path, content)\n"
+    "- delete_file(file_path)\n"
+    "- create_directory(dir_path)\n"
+    "- execute_bash_command(command)\n"
+    "- scan_codebase(root_path)\n"
+    "- grep_search(root_path, query, max_results)\n\n"
+    "When you need to use a tool, wrap the call in XML like this:\n"
     '<tool_call type="TOOL_NAME">\n'
-    '<parameter name="PARAMETER_NAME">PARAMETER_VALUE</parameter>\n'
-    '<parameter name="PARAMETER_NAME2">PARAMETER_VALUE2</parameter>\n'
+    '  <parameter name="PARAMETER_NAME">PARAMETER_VALUE</parameter>\n'
     "</tool_call>\n\n"
-    " "
-    "EXAMPLES:\n\n"
-    "To read a file:\n"
-    '<tool_call type="read_file">\n'
-    '<parameter name="file_path">src/main.py</parameter>\n'
-    "</tool_call>\n\n"
-    "To write a file:\n"
-    '<tool_call type="write_file">\n'
-    '<parameter name="file_path">example.txt</parameter>\n'
-    '<parameter name="content">Hello, world!</parameter>\n'
-    "</tool_call>\n\n"
-    "To delete a file:\n"
-    '<tool_call type="delete_file">\n'
-    '<parameter name="file_path">temp.txt</parameter>\n'
-    "</tool_call>\n\n"
-    "To create a directory:\n"
-    '<tool_call type="create_directory">\n'
-    '<parameter name="dir_path">new_folder</parameter>\n'
-    "</tool_call>\n\n"
-    "To execute a bash command:\n"
-    '<tool_call type="execute_bash_command">\n'
-    '<parameter name="command">python -m pytest tests/</parameter>\n'
-    "</tool_call>\n\n"
-    "To scan the codebase (get a high-level map of files and directories):\n"
-    '<tool_call type="scan_codebase">\n'
-    '<parameter name="root_path">.</parameter>\n'
-    "</tool_call>\n\n"
-    "To search inside the codebase without reading every file:\n"
-    '<tool_call type="grep_search">\n'
-    '<parameter name="root_path">.</parameter>\n'
-    '<parameter name="query">function_name_or_keyword</parameter>\n'
-    '<parameter name="max_results">80</parameter>\n'
-    "</tool_call>\n\n"
-    " "
-    "IMPORTANT RULES:\n"
-    "1. Always use XML tags when you need to call a tool\n"
-    "2. You can include regular text before or after tool calls "
-    "to explain what you're doing\n"
-    "3. You can make multiple tool calls in a single response if needed\n"
-    "4. If you don't need to use any tools, respond normally "
-    "without XML tags\n"
-    "5. Always be helpful, clear, and explain your actions to the user"
+    "You may include normal text before or after tool calls to explain what "
+    "you're doing. Use tools whenever they help, and always be clear and helpful."
 )
 
 GOOGLE_AGENT_MODEL = "gemini-flash-latest"
@@ -137,11 +90,12 @@ def run_agent(client: GoogleClient) -> None:
         # Add user message to history
         conversation_history.append({"role": "user", "content": user_input})
 
-        follow_up_required = True
+        # Follow up used later on to execute multiple tool calls in a single response
+        follow_up = True
         pending_error = False
 
-        while follow_up_required:
-            follow_up_required = False
+        while follow_up:
+            follow_up = False
 
             # Build conversation context with system prompt
             contents = [SYSTEM_PROMPT]
@@ -208,7 +162,7 @@ def run_agent(client: GoogleClient) -> None:
                 # immediately give it another turn (without waiting for user).
                 # This is used to execute multiple tool calls in a single response
                 if tool_calls and executed_all_tools:
-                    follow_up_required = True
+                    follow_up = True
                 else:
                     break
 
