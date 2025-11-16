@@ -15,6 +15,8 @@ from .utils import (
     print_response,
 )
 
+# The modern approcah to include tools is to use structured tools definitions
+# but for now I'll keep like this.
 SYSTEM_PROMPT = (
     "You are pucky, a helpful coding agent.\n"
     "You can use tools to read/write/delete files, create directories, "
@@ -90,17 +92,17 @@ def run_agent(client: GoogleClient) -> None:
         # Add user message to history
         conversation_history.append({"role": "user", "content": user_input})
 
+        # Build conversation context with system prompt once before the loop
+        contents = [SYSTEM_PROMPT]
+        for msg in conversation_history[-18:]:  # Keep last 18 messages for context
+            contents.append(msg["content"])
+
         # Follow up used later on to execute multiple tool calls in a single response
         follow_up = True
         pending_error = False
 
         while follow_up:
             follow_up = False
-
-            # Build conversation context with system prompt
-            contents = [SYSTEM_PROMPT]
-            for msg in conversation_history[-18:]:  # Keep last 18 messages for context
-                contents.append(msg["content"])
 
             spinner = None
             try:
@@ -157,6 +159,8 @@ def run_agent(client: GoogleClient) -> None:
                 conversation_history.append(
                     {"role": "assistant", "content": assistant_message}
                 )
+                # Append to contents for follow-up iterations (avoids rebuilding)
+                contents.append(assistant_message)
 
                 # If the assistant used tools and all of them executed,
                 # immediately give it another turn (without waiting for user).
