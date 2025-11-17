@@ -70,6 +70,8 @@ While the CLI is running you can execute local commands prefixed with `@` to
 stage context without immediately querying the LLM:
 
 - `@file path/to/file` &mdash; read a file and inline its content into the next prompt
+- `@tree [path]` &mdash; show the file-tree project structure (defaults to current directory)
+- `@context` &mdash; print the current context length in tokens
 - `@help` &mdash; list all available async commands
 
 You can chain multiple `@file` commands and then type your actual question. The

@@ -53,9 +53,9 @@ SYSTEM_PROMPT = (
 
 GOOGLE_AGENT_MODEL = "gemini-flash-latest"
 
-# Approximate token calculation and context compaction settings
+# Used for context compaction.
 # For now we use a test-friendly soft limit. You can increase this later.
-MAX_PROMPT_TOKENS_FOR_TESTING = 10_000
+MAX_CURRENT_CONTEXT_TOKENS = 10_000
 
 
 def run_agent(client: GoogleClient) -> None:
@@ -101,7 +101,7 @@ def run_agent(client: GoogleClient) -> None:
 
         if user_input.startswith("@"):
             if handle_async_action(
-                user_input, conversation_history, SYSTEM_PROMPT, MAX_PROMPT_TOKENS_FOR_TESTING
+                user_input, conversation_history, SYSTEM_PROMPT, MAX_CURRENT_CONTEXT_TOKENS
             ):
                 continue
 
@@ -119,7 +119,7 @@ def run_agent(client: GoogleClient) -> None:
             model=GOOGLE_AGENT_MODEL,
             conversation_history=conversation_history,
             system_prompt=SYSTEM_PROMPT,
-            max_tokens=MAX_PROMPT_TOKENS_FOR_TESTING,
+            max_tokens=MAX_CURRENT_CONTEXT_TOKENS,
         )
 
         # Build conversation context with system prompt once before the loop.
@@ -195,7 +195,7 @@ def run_agent(client: GoogleClient) -> None:
                     model=GOOGLE_AGENT_MODEL,
                     conversation_history=conversation_history,
                     system_prompt=SYSTEM_PROMPT,
-                    max_tokens=MAX_PROMPT_TOKENS_FOR_TESTING,
+                    max_tokens=MAX_CURRENT_CONTEXT_TOKENS,
                 )
                 # Rebuild contents after compaction
                 contents = [SYSTEM_PROMPT]

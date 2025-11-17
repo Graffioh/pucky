@@ -5,11 +5,6 @@ from __future__ import annotations
 from .context import estimate_tokens_for_history, scan_codebase, use_file_for_context
 
 
-def _use_file_for_context(path_str: str, conversation_history: list[dict[str, str]]) -> None:
-    """Adapter that delegates to context.use_file_for_context."""
-    use_file_for_context(path_str, conversation_history)
-
-
 def print_async_help() -> None:
     """Print the list of async (local) commands."""
     print(
@@ -20,6 +15,11 @@ def print_async_help() -> None:
         "  @help                – show this help message\n"
         "\n"
     )
+
+
+def _use_file_for_context(path_str: str, conversation_history: list[dict[str, str]]) -> None:
+    """Adapter that delegates to context.use_file_for_context."""
+    use_file_for_context(path_str, conversation_history)
 
 
 async def _print_context_length(

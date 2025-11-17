@@ -66,16 +66,14 @@ _CODE_FILE_EXTENSIONS = {
 }
 
 
+## +++ Context compaction +++
+
 # Simple heuristic: ~1 token per 4 characters.
 _CHARS_PER_TOKEN = 4
 
 # Number of most recent messages to keep verbatim when summarizing.
 # This is the soft target – we may keep fewer if the conversation is short.
 RECENT_MESSAGES_TO_KEEP = 1
-
-# When compaction triggers we try to reduce usage to this fraction of the
-# configured max to leave extra headroom for follow-up turns.
-TARGET_TOKEN_RATIO = 0.8
 
 
 def estimate_tokens_for_history(
@@ -181,6 +179,9 @@ def compact_conversation_history(
     conversation_history.clear()
     conversation_history.extend(history)
     return conversation_history
+
+
+## +++ Codebase scanning +++
 
 
 def _load_gitignore_specs(root: Path):
