@@ -42,7 +42,7 @@ uv pip install .
 export PATH="$PATH:/path/to/pucky"
 ```
 
-Then reload your shell:
+And reload your shell:
 ```bash
 source ~/.zshrc  # or source ~/.bashrc
 ```
@@ -64,13 +64,12 @@ Ask pucky to read/edit/create/remove files, then `y` to accept / `n` to decline.
 
 Type `quit` or `q` to quit pucky.
 
-### Async commands (context prep)
+### Actions
 
-While the CLI is running you can execute local commands prefixed with `@` to
-stage context without immediately querying the LLM:
+While the CLI is running you can execute async local commands prefixed with `@` called **Actions**:
 
-- `@file path/to/file` &mdash; read a file and inline its content into the next prompt
-- `@tree [path]` &mdash; show the file-tree project structure (defaults to current directory)
+- `@file <path_to_file>` &mdash; read a file and inline its content into the next prompt
+- `@tree <path_to_dir>` &mdash; show the file-tree project structure (defaults to current directory)
 - `@context` &mdash; print the current context length in tokens
 - `@help` &mdash; list all available async commands
 
