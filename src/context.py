@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pathspec
 
@@ -63,6 +64,123 @@ _CODE_FILE_EXTENSIONS = {
     ".cfg",
     ".env",
 }
+
+
+# Simple heuristic: ~1 token per 4 characters.
+_CHARS_PER_TOKEN = 4
+
+# Number of most recent messages to keep verbatim when summarizing.
+# This is the soft target – we may keep fewer if the conversation is short.
+RECENT_MESSAGES_TO_KEEP = 1
+
+# When compaction triggers we try to reduce usage to this fraction of the
+# configured max to leave extra headroom for follow-up turns.
+TARGET_TOKEN_RATIO = 0.8
+
+
+def estimate_tokens_for_history(
+    conversation_history: list[dict[str, str]],
+    system_prompt: str | None = None,
+) -> int:
+    """
+    Roughly estimate token usage for the current conversation.
+
+    Heuristic: 1 token ≈ 4 characters.
+    Reference: https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them
+
+    We count the system prompt (if provided) plus the content of each message.
+    """
+    total_chars = 0
+
+    if system_prompt:
+        total_chars += len(system_prompt)
+
+    for msg in conversation_history:
+        content = msg.get("content", "")
+        total_chars += len(content)
+
+    # Integer division is fine for a coarse estimate
+    return max(0, total_chars // _CHARS_PER_TOKEN)
+
+
+def compact_conversation_history(
+    client: Any,
+    model: str,
+    conversation_history: list[dict[str, str]],
+    system_prompt: str,
+    max_tokens: int,
+) -> list[dict[str, str]]:
+    """
+    Summarize older parts of the conversation when it grows too large.
+
+    Keep the most recent RECENT_MESSAGES_TO_KEEP messages verbatim and summarize
+    all earlier messages into a single summary message. Repeat until we fall under
+    max_tokens or cannot compact further.
+    """
+    current_tokens = estimate_tokens_for_history(conversation_history, system_prompt=system_prompt)
+
+    if current_tokens <= max_tokens:
+        return conversation_history
+
+    print(f"\n🔍 Context ({current_tokens:,} tokens) exceeds limit ({max_tokens:,}). Compacting...")
+
+    history = list(conversation_history)
+
+    while True:
+        current_tokens = estimate_tokens_for_history(history, system_prompt=system_prompt)
+        if current_tokens <= max_tokens:
+            break
+
+        # Keep most recent message(s), summarize the rest
+        if len(history) <= RECENT_MESSAGES_TO_KEEP:
+            print("\n⚠️  Cannot compact further.\n")
+            break
+
+        old_messages = history[:-RECENT_MESSAGES_TO_KEEP]
+        recent_messages = history[-RECENT_MESSAGES_TO_KEEP:]
+
+        combined_old_text = "\n\n".join(
+            f"[{m.get('role', 'unknown')}] {m.get('content', '')}" for m in old_messages
+        )
+
+        summary_prompt = (
+            "Summarize this conversation between a user and coding agent. "
+            "Keep it concise but preserve key details: goals, decisions, file paths, TODOs.\n\n"
+            f"{combined_old_text}\n\n"
+            "Summary:"
+        )
+
+        try:
+            summary_response = client.models.generate_content(
+                model=model,
+                contents=summary_prompt,
+            )
+            summary_text = (summary_response.text or "").strip()
+        except Exception as exc:
+            print(f"\n⚠️  Summarization failed: {exc}\n")
+            return conversation_history
+
+        if not summary_text:
+            print("\n⚠️  Empty summary returned.\n")
+            break
+
+        # Replace old messages with summary
+        summary_message = {
+            "role": "system",
+            "content": f"[Summary of earlier conversation]\n{summary_text}",
+        }
+        history = [summary_message, *recent_messages]
+
+        new_token_count = estimate_tokens_for_history(history, system_prompt=system_prompt)
+        print(
+            f"🧹 Compacted {len(old_messages)} messages "
+            f"({current_tokens:,} → {new_token_count:,} tokens)\n"
+        )
+
+    # Mutate the original list so any existing references remain valid.
+    conversation_history.clear()
+    conversation_history.extend(history)
+    return conversation_history
 
 
 def _load_gitignore_specs(root: Path):
@@ -148,9 +266,7 @@ def _is_ignored_by_gitignore(
         return False
 
 
-def _should_ignore_path(
-    path: Path, root: Path, gitignore_spec, is_dir: bool = False
-) -> bool:
+def _should_ignore_path(path: Path, root: Path, gitignore_spec, is_dir: bool = False) -> bool:
     """
     Check if a path should be ignored (combines hardcoded ignores and .gitignore).
 
@@ -202,9 +318,7 @@ def scan_codebase(root_path: str) -> str:
         dirnames[:] = [
             d
             for d in dirnames
-            if not _should_ignore_path(
-                Path(dirpath) / d, root, gitignore_spec, is_dir=True
-            )
+            if not _should_ignore_path(Path(dirpath) / d, root, gitignore_spec, is_dir=True)
         ]
 
         rel_dir = str(Path(dirpath).relative_to(root)) or "."
@@ -265,9 +379,7 @@ def scan_codebase(root_path: str) -> str:
 
     if total_files >= max_files:
         lines.append("")
-        lines.append(
-            f"Note: Stopped after {max_files} files to avoid scanning the entire tree."
-        )
+        lines.append(f"Note: Stopped after {max_files} files to avoid scanning the entire tree.")
 
     return "\n".join(lines)
 
@@ -427,12 +539,10 @@ def _format_file_block(path: Path, content: str, truncated: bool) -> str:
     return f"{header}\n{content}\n{footer}{note}"
 
 
-def use_file_for_context(
-    path_str: str, conversation_history: list[dict[str, str]]
-) -> None:
+def use_file_for_context(path_str: str, conversation_history: list[dict[str, str]]) -> None:
     """Read a file and append it to the conversation history as context."""
     if not path_str:
-        print("\nUsage: @file <path-to-file>")
+        print("\nUsage: @file <path_to_file>")
         return
 
     path = Path(path_str).expanduser()
@@ -469,9 +579,7 @@ def use_file_for_context(
         }
     )
 
-    note = (
-        f" (trimmed to {MAX_CONTEXT_STAGING_FILE_CHARS:,} chars)" if truncated else ""
-    )
+    note = f" (trimmed to {MAX_CONTEXT_STAGING_FILE_CHARS:,} chars)" if truncated else ""
     print(
         f"\n📎 Added '{resolved}'{note} to the next request context.\n"
         "   Ask your question when you're ready."
