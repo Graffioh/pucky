@@ -156,6 +156,10 @@ def speak_text(text: str) -> bool:
     if not api_key:
         return False
 
+    # Show loading spinner while preparing TTS
+    spinner = Spinner("🐤 pucky is preparing the voice")
+    spinner.start()
+
     try:
         # Initialize the ElevenLabs client
         client = ElevenLabs(api_key=api_key)
@@ -169,10 +173,15 @@ def speak_text(text: str) -> bool:
             output_format="mp3_44100_128",
         )
 
+        # Update spinner message when starting to play
+        spinner.message = "🐤 pucky is speaking"
+
         # Play the generated audio
         play(audio)
+        spinner.stop()
         return True
     except Exception as e:
+        spinner.stop()
         # Print the exception and return False if TTS fails
         print(f"\n❌ TTS failed: {e}\n")
         return False
@@ -190,8 +199,17 @@ class Spinner:
     def _spin(self):
         """Internal method that runs the spinner animation."""
         i = 0
+        last_message = ""
+        max_length = 0
         while not self.stop_spinner:
             char = self.spinner_chars[i % len(self.spinner_chars)]
+            # Clear the line if message changed
+            if self.message != last_message:
+                # Clear enough space for the longer of the two messages
+                clear_length = max(len(last_message), len(self.message), max_length) + 3
+                sys.stdout.write("\r" + " " * clear_length + "\r")
+                last_message = self.message
+                max_length = max(max_length, len(self.message))
             sys.stdout.write(f"\r{self.message} {char}")
             sys.stdout.flush()
             time.sleep(0.1)

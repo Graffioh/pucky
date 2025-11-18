@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .context import estimate_tokens_for_history, scan_codebase, use_file_for_context
-from .utils import Spinner, extract_text_without_tool_calls, speak_text
+from .utils import extract_text_without_tool_calls, speak_text
 
 
 def print_async_help() -> None:
@@ -53,17 +53,8 @@ def _speak_latest_response(conversation_history: list[dict[str, str]]) -> None:
                 # Extract text without tool calls for cleaner speech
                 text_without_tools = extract_text_without_tool_calls(content)
                 if text_without_tools:
-                    # Show loading spinner while preparing TTS
-                    spinner = Spinner("🐤 pucky is preparing the voice")
-                    spinner.start()
-                    try:
-                        success = speak_text(text_without_tools)
-                        spinner.stop()
-                        if success:
-                            print("\n🔊 Speaking latest response...\n")
-                    except Exception:
-                        spinner.stop()
-                        # Error already printed by speak_text
+                    if speak_text(text_without_tools):
+                        print("\n🔊 Speaking latest response...\n")
                     return
 
     print("\n⚠️  No agent response found to speak.\n")
