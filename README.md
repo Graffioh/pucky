@@ -10,7 +10,10 @@ Otherwise go read [codex](https://github.com/openai/codex/tree/main/codex-rs) ru
 
 ## Dependencies
 
-- `google-genai`
+- `google-genai` - for LLM calls
+- `pathspec` - for .gitignore files filtering
+- `pygments` - terminal syntax highlighting
+- `elevenlabs` - for text-to-speech (optional, only needed for `@tts` action)
 
 ## Requirements
 
