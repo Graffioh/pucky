@@ -5,6 +5,17 @@ import threading
 import time
 from pathlib import Path
 
+try:
+    from pygments import highlight as _pygments_highlight
+    from pygments.formatters import TerminalFormatter
+    from pygments.lexers import TextLexer, guess_lexer, guess_lexer_for_filename
+except Exception:  # pragma: no cover - optional dependency
+    _pygments_highlight = None
+    TerminalFormatter = None
+    TextLexer = None
+    guess_lexer = None
+    guess_lexer_for_filename = None
+
 
 def load_env_file(env_path: str | Path | None = None) -> None:
     """Load environment variables from a .env file.
@@ -94,6 +105,36 @@ def get_user_input(prompt="You: "):
 def print_response(text):
     """Print the agent's response with nice formatting."""
     print(f"\n🐤 pucky: {text}\n")
+
+
+def syntax_highlight(text: str, file_path: str | None = None) -> str:
+    """Return syntax highlighted text when pygments is available otherwise return the text as is."""
+    if (
+        not text
+        or _pygments_highlight is None
+        or TerminalFormatter is None
+        or TextLexer is None
+        or guess_lexer is None
+        or guess_lexer_for_filename is None
+    ):
+        return text
+
+    assert _pygments_highlight is not None
+    assert TerminalFormatter is not None
+    assert TextLexer is not None
+    assert guess_lexer is not None
+    assert guess_lexer_for_filename is not None
+
+    try:
+        if file_path:
+            lexer = guess_lexer_for_filename(file_path, text)
+        else:
+            lexer = guess_lexer(text)
+    except Exception:
+        lexer = TextLexer()
+
+    highlighted = _pygments_highlight(text, lexer, TerminalFormatter())
+    return highlighted.rstrip("\n")
 
 
 def extract_text_without_tool_calls(text: str) -> str:

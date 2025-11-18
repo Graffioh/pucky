@@ -12,7 +12,7 @@ from .file import (
     show_file_preview_with_diff,
     write_file,
 )
-from .utils import get_user_input
+from .utils import get_user_input, syntax_highlight
 
 
 class ToolResult(TypedDict):
@@ -20,6 +20,7 @@ class ToolResult(TypedDict):
 
     tool_type: str
     result: str
+    parameters: dict[str, str]
 
 
 class ToolCall(TypedDict):
@@ -293,6 +294,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
                             {
                                 "tool_type": tool_type,
                                 "result": "Operation skipped by user",
+                                "parameters": parameters,
                             }
                         )
                         # Skip execution, go to next tool_call
@@ -334,6 +336,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
                 {
                     "tool_type": tool_type,
                     "result": result,
+                    "parameters": parameters,
                 }
             )
 
@@ -346,5 +349,18 @@ def print_tool_results_summary(tool_results: list[ToolResult]) -> None:
     for tool_result in tool_results:
         tool_type = tool_result["tool_type"]
         result = tool_result["result"]
-        print(f"  {tool_type}: {result}")
+        parameters = tool_result["parameters"]
+
+        display_text = result
+        if tool_type == "read_file":
+            file_path = parameters.get("file_path")
+            display_text = syntax_highlight(result, file_path=file_path)
+
+        display_text = display_text.rstrip("\n")
+        if "\n" in display_text:
+            print(f"  {tool_type}:")
+            for line in display_text.splitlines():
+                print(f"    {line}")
+        else:
+            print(f"  {tool_type}: {display_text}")
     print()
