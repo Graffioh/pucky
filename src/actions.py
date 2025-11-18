@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .context import estimate_tokens_for_history, scan_codebase, use_file_for_context
+from .utils import Spinner, extract_text_without_tool_calls, speak_text
 
 
 def print_async_help() -> None:
@@ -12,6 +13,7 @@ def print_async_help() -> None:
         "  @file <path_to_file> – stage a file so the agent sees its contents next turn\n"
         "  @tree [path]         – show the file-tree project structure\n"
         "  @context             – print the current context length\n"
+        "  @tts                 – speak the latest agent response using elevenlabs text-to-speech\n"
         "  @help                – show this help message\n"
         "\n"
     )
@@ -39,6 +41,32 @@ def _print_tree(path_str: str = ".") -> None:
     """Print the file-tree project structure."""
     result = scan_codebase(path_str)
     print(f"\n{result}\n")
+
+
+def _speak_latest_response(conversation_history: list[dict[str, str]]) -> None:
+    """Speak the latest agent response using text-to-speech."""
+    # Find the latest assistant message in conversation history
+    for message in reversed(conversation_history):
+        if message.get("role") == "assistant":
+            content = message.get("content", "")
+            if content:
+                # Extract text without tool calls for cleaner speech
+                text_without_tools = extract_text_without_tool_calls(content)
+                if text_without_tools:
+                    # Show loading spinner while preparing TTS
+                    spinner = Spinner("🐤 pucky is preparing the voice")
+                    spinner.start()
+                    try:
+                        success = speak_text(text_without_tools)
+                        spinner.stop()
+                        if success:
+                            print("\n🔊 Speaking latest response...\n")
+                    except Exception:
+                        spinner.stop()
+                        # Error already printed by speak_text
+                    return
+
+    print("\n⚠️  No agent response found to speak.\n")
 
 
 def handle_async_action(
@@ -69,6 +97,10 @@ def handle_async_action(
 
     if command in {"help", "commands", "?"}:
         print_async_help()
+        return True
+
+    if command in {"tts"}:
+        _speak_latest_response(conversation_history)
         return True
 
     if not command:

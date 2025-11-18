@@ -5,16 +5,11 @@ import threading
 import time
 from pathlib import Path
 
-try:
-    from pygments import highlight as _pygments_highlight
-    from pygments.formatters import TerminalFormatter
-    from pygments.lexers import TextLexer, guess_lexer, guess_lexer_for_filename
-except Exception:  # pragma: no cover - optional dependency
-    _pygments_highlight = None
-    TerminalFormatter = None
-    TextLexer = None
-    guess_lexer = None
-    guess_lexer_for_filename = None
+from elevenlabs.client import ElevenLabs
+from elevenlabs.play import play
+from pygments import highlight as _pygments_highlight
+from pygments.formatters import TerminalFormatter
+from pygments.lexers import TextLexer, guess_lexer, guess_lexer_for_filename
 
 
 def load_env_file(env_path: str | Path | None = None) -> None:
@@ -108,22 +103,9 @@ def print_response(text):
 
 
 def syntax_highlight(text: str, file_path: str | None = None) -> str:
-    """Return syntax highlighted text when pygments is available otherwise return the text as is."""
-    if (
-        not text
-        or _pygments_highlight is None
-        or TerminalFormatter is None
-        or TextLexer is None
-        or guess_lexer is None
-        or guess_lexer_for_filename is None
-    ):
+    """Return syntax highlighted text."""
+    if not text:
         return text
-
-    assert _pygments_highlight is not None
-    assert TerminalFormatter is not None
-    assert TextLexer is not None
-    assert guess_lexer is not None
-    assert guess_lexer_for_filename is not None
 
     try:
         if file_path:
@@ -154,6 +136,46 @@ def extract_text_without_tool_calls(text: str) -> str:
     # Clean up extra whitespace
     cleaned_text = re.sub(r"\n\s*\n\s*\n", "\n\n", cleaned_text)
     return cleaned_text.strip()
+
+
+def speak_text(text: str) -> bool:
+    """
+    Convert text to speech using ElevenLabs TTS and play it.
+
+    This function requires:
+    - The elevenlabs package to be installed
+    - ELEVENLABS_API_KEY to be set in the environment
+
+    Args:
+        text: The text to convert to speech
+
+    Returns:
+        True if TTS succeeded, False otherwise
+    """
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    if not api_key:
+        return False
+
+    try:
+        # Initialize the ElevenLabs client
+        client = ElevenLabs(api_key=api_key)
+
+        # Convert text to speech
+        # Using a default voice - users can customize this later if needed
+        audio = client.text_to_speech.convert(
+            text=text,
+            voice_id="JBFqnCBsd6RMkjVDRZzb",  # Default voice
+            model_id="eleven_multilingual_v2",
+            output_format="mp3_44100_128",
+        )
+
+        # Play the generated audio
+        play(audio)
+        return True
+    except Exception as e:
+        # Print the exception and return False if TTS fails
+        print(f"\n❌ TTS failed: {e}\n")
+        return False
 
 
 class Spinner:
