@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .context import estimate_tokens_for_history, scan_codebase, use_file_for_context
-from .utils import extract_text_without_tool_calls, speak_text
+from .tts import speak_latest_response
 
 
 def print_async_help() -> None:
@@ -43,23 +43,6 @@ def _print_tree(path_str: str = ".") -> None:
     print(f"\n{result}\n")
 
 
-def _speak_latest_response(conversation_history: list[dict[str, str]]) -> None:
-    """Speak the latest agent response using text-to-speech."""
-    # Find the latest assistant message in conversation history
-    for message in reversed(conversation_history):
-        if message.get("role") == "assistant":
-            content = message.get("content", "")
-            if content:
-                # Extract text without tool calls for cleaner speech
-                text_without_tools = extract_text_without_tool_calls(content)
-                if text_without_tools:
-                    if speak_text(text_without_tools):
-                        print("\n🔊 Speaking latest response...\n")
-                    return
-
-    print("\n⚠️  No agent response found to speak.\n")
-
-
 def handle_async_action(
     raw_input: str,
     conversation_history: list[dict[str, str]],
@@ -91,7 +74,7 @@ def handle_async_action(
         return True
 
     if command in {"tts"}:
-        _speak_latest_response(conversation_history)
+        speak_latest_response(conversation_history)
         return True
 
     if not command:
