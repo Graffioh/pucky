@@ -71,6 +71,7 @@ While the CLI is running you can execute async local commands prefixed with `@` 
 - `@file <path_to_file>` &mdash; read a file and inline its content into the next prompt
 - `@tree <path_to_dir>` &mdash; show the file-tree project structure (defaults to current directory)
 - `@context` &mdash; print the current context length in tokens
+- `@tts` &mdash; speak the latest agent response using elevenlabs text-to-speech
 - `@help` &mdash; list all available async commands
 
 You can chain multiple `@file` commands and then type your actual question. The
