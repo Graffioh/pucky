@@ -5,11 +5,12 @@ from typing import TypedDict
 
 from .bash import execute_bash_command, is_safe_bash_command
 from .context import grep_search, scan_codebase
+from .edit import edit_file
 from .file import (
     create_directory,
     delete_file,
-    edit_file,
     read_file,
+    show_file_preview_with_diff,
     write_file,
 )
 from .utils import get_user_input, syntax_highlight
@@ -42,7 +43,7 @@ def _write_file(file_path: str, content: str) -> str:
 
 
 def _edit_file(file_path: str, patch: str) -> str:
-    """Adapter that delegates to file.edit_file."""
+    """Adapter that delegates to edit.edit_file."""
     return edit_file(file_path, patch)
 
 
@@ -92,15 +93,13 @@ def _show_edit_preview(file_path: str, patch: str) -> None:
 
         # Try to compute what the file will look like after applying the patch
         try:
-            from .file import _apply_unified_diff
+            from .edit import _apply_unified_diff
 
             new_lines = _apply_unified_diff(current_lines, patch)
             new_content = "\n".join(new_lines) + ("\n" if new_lines else "")
 
             # Show the computed diff
             print("\n   Resulting file changes (unified diff):")
-            from .file import show_file_preview_with_diff
-
             show_file_preview_with_diff(file_path, new_content)
         except Exception as e:
             print(f"\n   (Could not preview result: {str(e)})")

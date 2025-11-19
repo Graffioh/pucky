@@ -8,7 +8,7 @@ from pathlib import Path
 # Add parent directory to path to import src
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.file import edit_file
+from src.edit import edit_file
 
 
 def test_simple_edit():
