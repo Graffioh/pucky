@@ -8,7 +8,7 @@ import difflib
 import re
 
 
-def _apply_unified_diff(original_lines: list[str], patch: str) -> list[str]:
+def apply_unified_diff(original_lines: list[str], patch: str) -> list[str]:
     """Apply a unified diff patch to a list of lines.
 
     Args:
@@ -152,4 +152,3 @@ def _apply_hunk(lines: list[str], hunk_lines: list[str]) -> list[str]:
     # Build the result: lines before + new content + lines after
     new_lines = lines[:start] + new_content + lines[start + consumed :]
     return new_lines
-

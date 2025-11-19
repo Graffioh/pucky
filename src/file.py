@@ -12,7 +12,7 @@ These functions implement the core logic for:
 import difflib
 from pathlib import Path
 
-from .edit import _apply_unified_diff
+from .edit import apply_unified_diff
 
 
 def read_file(file_path: str) -> str:
@@ -91,7 +91,7 @@ def edit_file(file_path: str, patch: str) -> str:
             current_lines = []
 
         # Parse and apply the patch
-        new_lines = _apply_unified_diff(current_lines, patch)
+        new_lines = apply_unified_diff(current_lines, patch)
 
         # Write the modified content back
         path.parent.mkdir(parents=True, exist_ok=True)
