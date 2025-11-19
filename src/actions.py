@@ -69,12 +69,12 @@ def handle_async_action(
         asyncio.run(_print_context_length(conversation_history, system_prompt, max_tokens))
         return True
 
-    if command in {"help", "commands", "?"}:
-        print_async_help()
-        return True
-
     if command in {"tts"}:
         speak_latest_response(conversation_history)
+        return True
+
+    if command in {"help", "commands", "?"}:
+        print_async_help()
         return True
 
     if not command:
