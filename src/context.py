@@ -385,6 +385,66 @@ def scan_codebase(root_path: str) -> str:
     return "\n".join(lines)
 
 
+def _parse_grep_output(
+    stdout: str, root: Path, max_results_int: int, per_file_limit: int = 5
+) -> tuple[list[str], int]:
+    """Parse grep output and return formatted matches.
+
+    Args:
+        stdout: The stdout output from grep command
+        root: Root directory path for computing relative paths
+        max_results_int: Maximum number of matches to return
+        per_file_limit: Maximum matches per file (default: 5)
+
+    Returns:
+        Tuple of (matches list, total_matches count)
+    """
+    matches: list[str] = []
+    total_matches = 0
+    per_file_counts: dict[str, int] = {}
+
+    for line in stdout.splitlines():
+        if total_matches >= max_results_int:
+            break
+
+        # Parse grep output: path:line_num:content
+        parts = line.split(":", 2)
+        if len(parts) < 3:
+            continue
+
+        file_path_str, line_num_str, content = parts
+        file_path = Path(file_path_str)
+
+        # Get relative path from root
+        try:
+            rel_path = str(file_path.relative_to(root))
+        except ValueError:
+            # Path is not relative to root, skip
+            continue
+
+        # Check file size limit
+        try:
+            if file_path.stat().st_size > 512 * 1024:  # > 512 KB
+                continue
+        except OSError:
+            continue
+
+        # Limit matches per file
+        if per_file_counts.get(rel_path, 0) >= per_file_limit:
+            continue
+
+        # Format snippet
+        snippet = content.rstrip("\n")
+        if len(snippet) > 200:
+            snippet = snippet[:200] + "..."
+
+        matches.append(f"{rel_path}:{line_num_str}: {snippet}")
+        total_matches += 1
+        per_file_counts[rel_path] = per_file_counts.get(rel_path, 0) + 1
+
+    return matches, total_matches
+
+
 def grep_search(root_path: str, query: str, max_results: int | str = 80) -> str:
     """
     Search for a text query inside the codebase using grep.
@@ -456,50 +516,7 @@ def grep_search(root_path: str, query: str, max_results: int | str = 80) -> str:
         return f"Error executing grep: {e}"
 
     # Parse grep output
-    # Format: path/to/file:line_number:line_content
-    matches: list[str] = []
-    total_matches = 0
-    per_file_counts: dict[str, int] = {}
-    per_file_limit = 5
-
-    for line in result.stdout.splitlines():
-        if total_matches >= max_results_int:
-            break
-
-        # Parse grep output: path:line_num:content
-        parts = line.split(":", 2)
-        if len(parts) < 3:
-            continue
-
-        file_path_str, line_num_str, content = parts
-        file_path = Path(file_path_str)
-
-        # Get relative path from root
-        try:
-            rel_path = str(file_path.relative_to(root))
-        except ValueError:
-            # Path is not relative to root, skip
-            continue
-
-        # Check file size limit
-        try:
-            if file_path.stat().st_size > 512 * 1024:  # > 512 KB
-                continue
-        except OSError:
-            continue
-
-        # Limit matches per file
-        if per_file_counts.get(rel_path, 0) >= per_file_limit:
-            continue
-
-        # Format snippet
-        snippet = content.rstrip("\n")
-        if len(snippet) > 200:
-            snippet = snippet[:200] + "..."
-
-        matches.append(f"{rel_path}:{line_num_str}: {snippet}")
-        total_matches += 1
-        per_file_counts[rel_path] = per_file_counts.get(rel_path, 0) + 1
+    matches, total_matches = _parse_grep_output(result.stdout, root, max_results_int)
 
     if not matches:
         return f"No matches for '{query}' under '{root}'."
