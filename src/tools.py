@@ -5,10 +5,10 @@ from typing import TypedDict
 
 from .bash import execute_bash_command, is_safe_bash_command
 from .context import grep_search, scan_codebase
-from .edit import edit_file
 from .file import (
     create_directory,
     delete_file,
+    edit_file,
     read_file,
     show_file_preview_with_diff,
     write_file,
@@ -43,7 +43,7 @@ def _write_file(file_path: str, content: str) -> str:
 
 
 def _edit_file(file_path: str, patch: str) -> str:
-    """Adapter that delegates to edit.edit_file."""
+    """Adapter that delegates to file.edit_file."""
     return edit_file(file_path, patch)
 
 

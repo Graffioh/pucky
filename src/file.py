@@ -12,6 +12,8 @@ These functions implement the core logic for:
 import difflib
 from pathlib import Path
 
+from .edit import _apply_unified_diff
+
 
 def read_file(file_path: str) -> str:
     """Read a file and return its contents."""
@@ -64,6 +66,42 @@ def create_directory(dir_path: str) -> str:
         return f"Successfully created directory '{dir_path}'"
     except Exception as e:
         return f"Error creating directory: {str(e)}"
+
+
+def edit_file(file_path: str, patch: str) -> str:
+    """Apply a unified diff patch to a file.
+
+    Args:
+        file_path: Path to the file to edit
+        patch: Unified diff patch string to apply
+
+    Returns:
+        Success message or error description
+    """
+    try:
+        path = Path(file_path)
+
+        # Read current file content
+        if path.exists() and path.is_file():
+            current_lines = path.read_text().splitlines(keepends=False)
+        elif path.exists():
+            return f"Error: '{file_path}' exists but is not a file."
+        else:
+            # File doesn't exist, start with empty content
+            current_lines = []
+
+        # Parse and apply the patch
+        new_lines = _apply_unified_diff(current_lines, patch)
+
+        # Write the modified content back
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(new_lines) + ("\n" if new_lines else ""))
+
+        return f"Successfully applied patch to '{file_path}'"
+    except ValueError as e:
+        return f"Error applying patch: {str(e)}"
+    except Exception as e:
+        return f"Error editing file: {str(e)}"
 
 
 def show_file_preview_with_diff(file_path: str, new_content: str) -> None:

@@ -8,10 +8,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.context import grep_search, scan_codebase
-from src.edit import edit_file
 from src.file import (
     create_directory,
     delete_file,
+    edit_file,
     read_file,
     write_file,
 )
