@@ -11,6 +11,7 @@ from src.context import grep_search, scan_codebase
 from src.file import (
     create_directory,
     delete_file,
+    edit_file,
     read_file,
     write_file,
 )
@@ -24,11 +25,12 @@ def print_menu():
     print("=" * 60)
     print("1. Read file")
     print("2. Write file")
-    print("3. Delete file")
-    print("4. Create directory")
-    print("5. Execute bash command")
-    print("6. Scan codebase")
-    print("7. Search codebase")
+    print("3. Edit file (patch)")
+    print("4. Delete file")
+    print("5. Create directory")
+    print("6. Execute bash command")
+    print("7. Scan codebase")
+    print("8. Search codebase")
     print("0. Quit")
     print("=" * 60)
 
@@ -72,6 +74,34 @@ def test_write_file():
     content = "\n".join(lines)
     print("\n✏️  Writing file...")
     result = write_file(file_path, content)
+    print(result)
+
+
+def test_edit_file():
+    """Test the edit_file function."""
+    file_path = get_input("Enter file path")
+    if not file_path:
+        print("Error: File path cannot be empty")
+        return
+    print("Enter unified diff patch (type 'EOF' on a new line to finish):")
+    print("Example patch format:")
+    print("  @@ -1,3 +1,4 @@")
+    print("   line1")
+    print("  -old line")
+    print("  +new line")
+    print("   line3")
+    lines = []
+    try:
+        while True:
+            line = input()
+            if line == "EOF":
+                break
+            lines.append(line)
+    except (EOFError, KeyboardInterrupt):
+        pass
+    patch = "\n".join(lines)
+    print("\n🔧 Applying patch...")
+    result = edit_file(file_path, patch)
     print(result)
 
 
@@ -140,7 +170,7 @@ def main():
 
     while True:
         print_menu()
-        choice = get_input("\nSelect an option (0-7)")
+        choice = get_input("\nSelect an option (0-8)")
 
         if choice == "0":
             print("\n👋 Goodbye!")
@@ -150,17 +180,19 @@ def main():
         elif choice == "2":
             test_write_file()
         elif choice == "3":
-            test_delete_file()
+            test_edit_file()
         elif choice == "4":
-            test_create_directory()
+            test_delete_file()
         elif choice == "5":
-            test_execute_bash_command()
+            test_create_directory()
         elif choice == "6":
-            test_scan_codebase()
+            test_execute_bash_command()
         elif choice == "7":
+            test_scan_codebase()
+        elif choice == "8":
             test_search_codebase()
         else:
-            print(f"\n❌ Invalid choice: '{choice}'. Please select 0-7.")
+            print(f"\n❌ Invalid choice: '{choice}'. Please select 0-8.")
 
         # Ask if user wants to continue
         if choice != "0":

@@ -36,11 +36,22 @@ SYSTEM_PROMPT = (
     "Tools list:\n"
     "- read_file(file_path)\n"
     "- write_file(file_path, content)\n"
+    "- edit_file(file_path, patch)\n"
     "- delete_file(file_path)\n"
     "- create_directory(dir_path)\n"
     "- execute_bash_command(command)\n"
     "- scan_codebase(root_path)\n"
     "- grep_search(root_path, query, max_results)\n\n"
+    "# File editing \n"
+    "IMPORTANT: File editing rules:\n"
+    "- Use write_file(file_path, content) ONLY for creating NEW files that "
+    "don't exist yet.\n"
+    "- Use edit_file(file_path, patch) for ALL modifications to existing "
+    "files.\n"
+    "- NEVER use write_file to overwrite existing files - always use "
+    "edit_file with a patch instead.\n"
+    "- When modifying an existing file, read it first, then use edit_file "
+    "with a unified diff patch.\n\n"
     "Tool call format:\n"
     "When you need to use a tool, wrap the call in XML like this:\n"
     '<tool_call type="TOOL_NAME">\n'
@@ -138,7 +149,7 @@ def run_agent(client: GoogleClient) -> None:
             spinner = None
             try:
                 # Show spinner while generating response
-                spinner = Spinner("🐤 Pucky is thinking")
+                spinner = Spinner("🐤 pucky is planning the next move")
                 spinner.start()
 
                 # Get response from the model

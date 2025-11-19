@@ -7,7 +7,12 @@ from pathlib import Path
 
 from pygments import highlight as _pygments_highlight
 from pygments.formatters import TerminalFormatter
-from pygments.lexers import TextLexer, guess_lexer, guess_lexer_for_filename
+from pygments.lexers import (
+    TextLexer,
+    get_lexer_by_name,
+    guess_lexer,
+    guess_lexer_for_filename,
+)
 
 
 def load_env_file(env_path: str | Path | None = None) -> None:
@@ -96,17 +101,59 @@ def get_user_input(prompt="You: "):
 
 
 def print_response(text):
-    """Print the agent's response with nice formatting."""
-    print(f"\n🐤 pucky: {text}\n")
+    """Print the agent's response with nice formatting and syntax highlighting."""
+    print("\n🐤 pucky:", end="")
+    _pretty_print_from_text(text)
+    print("\n")
 
 
-def syntax_highlight(text: str, file_path: str | None = None) -> str:
-    """Return syntax highlighted text."""
+def _pretty_print_from_text(text: str) -> None:
+    """Print text with highlighted code blocks."""
+
+    # Split by code blocks
+    # Pattern matches ```language\ncontent```
+    # We capture the whole block to preserve it in the split list
+    pattern = r"(```[\w-]*\n[\s\S]*?```)"
+    parts = re.split(pattern, text)
+
+    for part in parts:
+        if part.startswith("```"):
+            # It's a code block
+            # Extract language and content
+            match = re.match(r"```([\w-]*)\n([\s\S]*?)```", part)
+            if match:
+                lang = match.group(1)
+                code = match.group(2)
+
+                highlighted = syntax_highlight(code, language=lang)
+                # We print a newline before and after the block for spacing
+                print(f"\n{highlighted}\n", end="")
+            else:
+                # Malformed block, just print as is
+                print(part, end="")
+        else:
+            # Regular text
+            print(part, end="")
+
+
+def syntax_highlight(text: str, language: str | None = None, file_path: str | None = None) -> str:
+    """Return syntax highlighted text.
+
+    Args:
+        text: The text/code to highlight
+        language: Optional language name (e.g. 'python') to force a specific lexer
+        file_path: Optional file path to help guess the lexer based on extension
+
+    Returns:
+        The highlighted text with terminal color codes
+    """
     if not text:
         return text
 
     try:
-        if file_path:
+        if language:
+            lexer = get_lexer_by_name(language, stripall=True)
+        elif file_path:
             lexer = guess_lexer_for_filename(file_path, text)
         else:
             lexer = guess_lexer(text)

@@ -67,15 +67,50 @@ Ask pucky to read/edit/create/remove files, then `y` to accept / `n` to decline.
 
 Type `quit` or `q` to quit pucky.
 
+### Tools
+
+Pucky can use the following tools to interact with your codebase:
+
+- **read_file(file_path)** - Read the contents of a file
+- **write_file(file_path, content)** - Write content to a file (overwrites entire file)
+- **edit_file(file_path, patch)** - Apply a unified diff patch to a file (efficient for small changes)
+- **delete_file(file_path)** - Delete a file
+- **create_directory(dir_path)** - Create a directory
+- **execute_bash_command(command)** - Execute a bash command
+- **scan_codebase(root_path)** - Scan and show the codebase structure
+- **grep_search(root_path, query, max_results)** - Search for text in the codebase
+
+The `edit_file` tool is particularly useful when you want to make small changes to a file without rewriting the entire file. It accepts a unified diff patch format:
+
+```
+@@ -start_line,line_count +start_line,line_count @@
+ context line (unchanged)
+-old line (to be deleted)
++new line (to be added)
+ context line (unchanged)
+```
+
+Example:
+```
+<tool_call type="edit_file">
+  <parameter name="file_path">src/main.py</parameter>
+  <parameter name="patch">@@ -5,2 +5,3 @@
+ def main():
+     print("Hello")
++    print("World")
+</parameter>
+</tool_call>
+```
+
 ### Actions
 
 While the CLI is running you can execute async local commands prefixed with `@` called **Actions**:
 
-- `@file <path_to_file>` &mdash; read a file and inline its content into the next prompt
-- `@tree <path_to_dir>` &mdash; show the file-tree project structure (defaults to current directory)
-- `@context` &mdash; print the current context length in tokens
-- `@tts` &mdash; speak the latest agent response using elevenlabs text-to-speech
-- `@help` &mdash; list all available async commands
+- `@file <path_to_file>` - read a file and inline its content into the next prompt
+- `@tree <path_to_dir>` - show the file-tree project structure (defaults to current directory)
+- `@context` - print the current context length in tokens
+- `@tts` - speak the latest agent response using elevenlabs text-to-speech
+- `@help` - list all available async commands
 
 You can chain multiple `@file` commands and then type your actual question. The
 agent will see every staged file before answering.

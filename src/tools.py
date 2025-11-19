@@ -8,8 +8,8 @@ from .context import grep_search, scan_codebase
 from .file import (
     create_directory,
     delete_file,
+    edit_file,
     read_file,
-    show_file_preview_with_diff,
     write_file,
 )
 from .utils import get_user_input, syntax_highlight
@@ -41,6 +41,11 @@ def _write_file(file_path: str, content: str) -> str:
     return write_file(file_path, content)
 
 
+def _edit_file(file_path: str, patch: str) -> str:
+    """Adapter that delegates to file.edit_file."""
+    return edit_file(file_path, patch)
+
+
 def _delete_file(file_path: str) -> str:
     """Adapter that delegates to file.delete_file."""
     return delete_file(file_path)
@@ -61,9 +66,57 @@ def _grep_search(root_path: str, query: str, max_results: str = "80") -> str:
     return grep_search(root_path, query, max_results=max_results)
 
 
-def _show_file_preview_with_diff(file_path: str, new_content: str) -> None:
-    """Adapter that delegates to file.show_file_preview_with_diff."""
-    show_file_preview_with_diff(file_path, new_content)
+def _show_edit_preview(file_path: str, patch: str) -> None:
+    """Show a preview of the patch that will be applied to a file."""
+    from pathlib import Path
+
+    path = Path(file_path)
+
+    if path.exists() and path.is_file():
+        try:
+            current_lines = path.read_text().splitlines(keepends=False)
+        except Exception:
+            current_lines = []
+
+        # Show the patch that will be applied
+        print("\n   Patch to apply:")
+        for line in patch.splitlines():
+            # Color added/removed lines similar to GitHub (green/red)
+            if line.startswith("+") and not line.startswith("+++"):
+                colored = f"\033[32m{line}\033[0m"
+            elif line.startswith("-") and not line.startswith("---"):
+                colored = f"\033[31m{line}\033[0m"
+            else:
+                colored = line
+            print(f"     {colored}")
+
+        # Try to compute what the file will look like after applying the patch
+        try:
+            from .file import _apply_unified_diff
+
+            new_lines = _apply_unified_diff(current_lines, patch)
+            new_content = "\n".join(new_lines) + ("\n" if new_lines else "")
+
+            # Show the computed diff
+            print("\n   Resulting file changes (unified diff):")
+            from .file import show_file_preview_with_diff
+
+            show_file_preview_with_diff(file_path, new_content)
+        except Exception as e:
+            print(f"\n   (Could not preview result: {str(e)})")
+            print()
+    else:
+        print("\n   (File does not exist yet; this will create a new file.)")
+        print("   Patch to apply:")
+        for line in patch.splitlines():
+            if line.startswith("+") and not line.startswith("+++"):
+                colored = f"\033[32m{line}\033[0m"
+            elif line.startswith("-") and not line.startswith("---"):
+                colored = f"\033[31m{line}\033[0m"
+            else:
+                colored = line
+            print(f"     {colored}")
+        print()
 
 
 def _execute_bash_command(command: str) -> str:
@@ -79,6 +132,9 @@ def _format_operation_description(tool_type: str, parameters: dict[str, str]) ->
     if tool_type == "write_file":
         file_path = parameters.get("file_path", "unknown")
         return f"✏️  Writing into file: {file_path}"
+    if tool_type == "edit_file":
+        file_path = parameters.get("file_path", "unknown")
+        return f"🔧 Editing file with patch: {file_path}"
     if tool_type == "delete_file":
         file_path = parameters.get("file_path", "unknown")
         return f"🗑️  Deleting file: {file_path}"
@@ -157,6 +213,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
         tool_map = {
             "read_file": _read_file,
             "write_file": _write_file,
+            "edit_file": _edit_file,
             "delete_file": _delete_file,
             "create_directory": _create_directory,
             "execute_bash_command": _execute_bash_command,
@@ -199,11 +256,29 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
                     print(f"\n❓ Confirm operation {index}/{total_ops}:")
                     print(f"   {description}")
 
-                    # For write operations, show a preview of the change
+                    # For write operations, show a simple preview (no diff since it's for new files)
                     if tool_type == "write_file":
                         file_path = parameters.get("file_path", "unknown")
                         content = parameters.get("content", "")
-                        _show_file_preview_with_diff(file_path, content)
+                        from pathlib import Path
+
+                        path = Path(file_path)
+                        if path.exists() and path.is_file():
+                            print(
+                                f"\n   ⚠️  Warning: File '{file_path}' "
+                                "already exists. This will overwrite it."
+                            )
+                        else:
+                            print(f"\n   📝 Creating new file: {file_path}")
+                        if content:
+                            line_count = len(content.splitlines())
+                            print(f"   Content: {line_count} line(s)")
+
+                    # For edit operations, show the patch and preview
+                    if tool_type == "edit_file":
+                        file_path = parameters.get("file_path", "unknown")
+                        patch = parameters.get("patch", "")
+                        _show_edit_preview(file_path, patch)
 
                     answer = get_user_input("   Proceed? [y]es / [n]o / [q]uit: ")
                     if answer is None:
