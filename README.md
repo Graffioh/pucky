@@ -80,28 +80,6 @@ Pucky can use the following tools to interact with your codebase:
 - **scan_codebase(root_path)** - Scan and show the codebase structure
 - **grep_search(root_path, query, max_results)** - Search for text in the codebase
 
-The `edit_file` tool is particularly useful when you want to make small changes to a file without rewriting the entire file. It accepts a unified diff patch format:
-
-```
-@@ -start_line,line_count +start_line,line_count @@
- context line (unchanged)
--old line (to be deleted)
-+new line (to be added)
- context line (unchanged)
-```
-
-Example:
-```
-<tool_call type="edit_file">
-  <parameter name="file_path">src/main.py</parameter>
-  <parameter name="patch">@@ -5,2 +5,3 @@
- def main():
-     print("Hello")
-+    print("World")
-</parameter>
-</tool_call>
-```
-
 ### Actions
 
 While the CLI is running you can execute async local commands prefixed with `@` called **Actions**:
