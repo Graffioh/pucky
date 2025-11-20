@@ -68,6 +68,15 @@ def _grep_search(root_path: str, query: str, max_results: str = "80") -> str:
     return grep_search(root_path, query, max_results=max_results)
 
 
+def _update_system_prompt(instruction: str, dynamic_instructions: list[str]) -> str:
+    """Append a new instruction to the dynamic system prompt (in-memory)."""
+    try:
+        dynamic_instructions.append(instruction)
+        return f"Instruction added: {instruction}"
+    except Exception as e:
+        return f"Error updating instructions: {e}"
+
+
 def _show_edit_preview(file_path: str, patch: str) -> None:
     """Show a preview of the patch that will be applied to a file."""
     from pathlib import Path
@@ -149,10 +158,13 @@ def _format_operation_description(tool_type: str, parameters: dict[str, str]) ->
         root_path = parameters.get("root_path", ".")
         query = parameters.get("query", "")
         return f"🔍 Searching codebase at: {root_path} for: {query!r}"
+    if tool_type == "update_system_prompt":
+        instruction = parameters.get("instruction", "")
+        return f"🧠 Updating system prompt: {instruction}"
     return f"❓ Unknown operation: {tool_type}"
 
 
-def parse_tool_calls(text: str) -> list[ToolCall]:
+def parse_tool_calls(text: str, dynamic_instructions: list[str] | None = None) -> list[ToolCall]:
     """
     Parse XML tool calls from agent response text.
 
@@ -185,13 +197,17 @@ def parse_tool_calls(text: str) -> list[ToolCall]:
         # Reconstruct the full XML for this tool call
         raw_xml = f'<tool_call type="{tool_type}">{params_content}</tool_call>'
 
-        tool_calls.append(
-            {
-                "call_type": tool_type,
-                "parameters": parameters,
-                "raw_xml": raw_xml,
-            }
-        )
+        tool_call_dict: ToolCall = {
+            "call_type": tool_type,
+            "parameters": parameters,
+            "raw_xml": raw_xml,
+        }
+
+        # Inject dynamic_instructions reference for update_system_prompt tool
+        if tool_type == "update_system_prompt" and dynamic_instructions is not None:
+            tool_call_dict["_dynamic_instructions"] = dynamic_instructions  # type: ignore
+
+        tool_calls.append(tool_call_dict)
 
     return tool_calls
 
@@ -217,6 +233,7 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             "execute_bash_command": _execute_bash_command,
             "scan_codebase": _scan_codebase,
             "grep_search": _grep_search,
+            "update_system_prompt": _update_system_prompt,
         }
 
         # Print operations that will be performed
@@ -237,8 +254,13 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
             parameters = tool_call["parameters"]
 
             # Execute read-only operations immediately without confirmation
-            # These are: read_file, scan_codebase, grep_search
-            read_only_ops = {"read_file", "scan_codebase", "grep_search"}
+            # These are: read_file, scan_codebase, grep_search, update_system_prompt
+            read_only_ops = {
+                "read_file",
+                "scan_codebase",
+                "grep_search",
+                "update_system_prompt",
+            }
 
             # Check if this is a safe bash command that doesn't need confirmation
             is_safe_bash = False
@@ -320,7 +342,18 @@ def execute_tool_calls(tool_calls: list[ToolCall]) -> list[ToolResult]:
                 try:
                     # Execute the tool function
                     tool_func = tool_map[tool_type]
-                    result = tool_func(**parameters)
+
+                    # Special handling for update_system_prompt
+                    if tool_type == "update_system_prompt":
+                        dynamic_instructions_ref = tool_call.get("_dynamic_instructions")  # type: ignore
+                        if dynamic_instructions_ref is not None:
+                            result = tool_func(
+                                dynamic_instructions=dynamic_instructions_ref, **parameters
+                            )
+                        else:
+                            result = "Error: Dynamic instructions reference not available"
+                    else:
+                        result = tool_func(**parameters)
                 except TypeError as e:
                     result = (
                         f"Error: Invalid parameters for {tool_type}. "

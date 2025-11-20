@@ -14,6 +14,9 @@ def print_async_help() -> None:
         "  @tree [path]         – show the file-tree project structure\n"
         "  @context             – print the current context length\n"
         "  @tts                 – speak the latest agent response using elevenlabs text-to-speech\n"
+        "  @prompt <text>       – append instructions to the dynamic system prompt\n"
+        "  @show_prompt         – show the current system prompt\n"
+        "  @reset_prompt        – clear the dynamic system prompt\n"
         "  @help                – show this help message\n"
         "\n"
     )
@@ -43,11 +46,38 @@ def _print_tree(path_str: str = ".") -> None:
     print(f"\n{result}\n")
 
 
+def _update_prompt(instruction: str, dynamic_instructions: list[str]) -> None:
+    """Append a new instruction to the dynamic system prompt (in-memory)."""
+    try:
+        dynamic_instructions.append(instruction)
+        print(f"\n🧠 Instruction added to system prompt: {instruction}\n")
+    except Exception as e:
+        print(f"\n❌ Error updating instructions: {e}\n")
+
+
+def _reset_prompt(dynamic_instructions: list[str]) -> None:
+    """Clear the dynamic system prompt (in-memory)."""
+    try:
+        dynamic_instructions.clear()
+        print("\n🧠 Dynamic system prompt cleared.\n")
+    except Exception as e:
+        print(f"\n❌ Error clearing instructions: {e}\n")
+
+
+def _print_system_prompt(prompt: str | None) -> None:
+    """Print the current system prompt."""
+    if not prompt:
+        print("\n⚠️  System prompt is empty or unavailable.\n")
+        return
+    print(f"\n📜 Current System Prompt:\n\n{prompt}\n")
+
+
 def handle_async_action(
     raw_input: str,
     conversation_history: list[dict[str, str]],
     system_prompt: str | None = None,
     max_tokens: int | None = None,
+    dynamic_instructions: list[str] | None = None,
 ) -> bool:
     """Handle commands that start with '@' without pinging the model."""
     command, _, arguments = raw_input[1:].partition(" ")
@@ -71,6 +101,26 @@ def handle_async_action(
 
     if command in {"tts"}:
         speak_latest_response(conversation_history)
+        return True
+
+    if command in {"prompt", "p"}:
+        if not arguments:
+            print("\n⚠️  Usage: @prompt <instruction text>")
+        elif dynamic_instructions is not None:
+            _update_prompt(arguments, dynamic_instructions)
+        else:
+            print("\n❌ Error: Dynamic instructions not available.\n")
+        return True
+
+    if command in {"show_prompt", "sp"}:
+        _print_system_prompt(system_prompt)
+        return True
+
+    if command in {"reset_prompt", "reset"}:
+        if dynamic_instructions is not None:
+            _reset_prompt(dynamic_instructions)
+        else:
+            print("\n❌ Error: Dynamic instructions not available.\n")
         return True
 
     if command in {"help", "commands", "?"}:

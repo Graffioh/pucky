@@ -18,10 +18,15 @@ from .utils import (
 
 # The modern approcah to include tools is to use structured tools definitions
 # but for now I'll keep like this.
-SYSTEM_PROMPT = (
+DEFAULT_SYSTEM_PROMPT = (
+    "<static_system_prompt>\n"
     "You are pucky, a helpful coding agent.\n"
     "You can use tools to read/write/delete files, create directories, "
     "run shell commands, and scan or search the codebase.\n\n"
+    "⚠️ CRITICAL: If the user says 'from now on...', 'always...', 'never...', 'remember...', "
+    "or gives ANY persistent instruction, you MUST immediately call "
+    "`update_system_prompt(instruction)` to save it. "
+    "Do NOT just acknowledge in chat—use the tool!\n\n"
     "# Tone and style\n"
     "You should be concise, direct, and to the point.\n"
     "You MUST answer concisely with fewer than 4 "
@@ -41,7 +46,8 @@ SYSTEM_PROMPT = (
     "- create_directory(dir_path)\n"
     "- execute_bash_command(command)\n"
     "- scan_codebase(root_path)\n"
-    "- grep_search(root_path, query, max_results)\n\n"
+    "- grep_search(root_path, query, max_results)\n"
+    "- update_system_prompt(instruction)\n\n"
     "# File editing \n"
     "IMPORTANT: File editing rules:\n"
     "- Use write_file(file_path, content) ONLY for creating NEW files that "
@@ -60,6 +66,7 @@ SYSTEM_PROMPT = (
     "# General guidelines\n"
     "You may include normal text before or after tool calls to explain what "
     "you're doing. Use tools whenever they help, and always be clear and helpful."
+    "</static_system_prompt>\n"
 )
 
 GOOGLE_AGENT_MODEL = "gemini-flash-latest"
@@ -69,14 +76,28 @@ GOOGLE_AGENT_MODEL = "gemini-flash-latest"
 MAX_CURRENT_CONTEXT_TOKENS = 10_000
 
 
+def get_effective_system_prompt(dynamic_instructions: list[str]) -> str:
+    """Build system prompt with dynamic instructions appended."""
+    if not dynamic_instructions:
+        return DEFAULT_SYSTEM_PROMPT
+
+    dynamic_section = "<dynamic_system_prompt>\n"
+    for instruction in dynamic_instructions:
+        dynamic_section += f"- {instruction}\n"
+    dynamic_section += "</dynamic_system_prompt>\n"
+
+    return DEFAULT_SYSTEM_PROMPT + dynamic_section
+
+
 def run_agent(client: GoogleClient) -> None:
     conversation_history = []
+    dynamic_instructions: list[str] = []  # In-memory storage for dynamic rules
 
     # Initial greeting
     try:
         # Include system prompt in the first message
         initial_message = (
-            f"{SYSTEM_PROMPT}\n\n"
+            f"{DEFAULT_SYSTEM_PROMPT}\n\n"
             "Hello! Introduce yourself briefly as pucky, "
             "a helpful coding agent and tell the user what you can do."
         )
@@ -110,9 +131,16 @@ def run_agent(client: GoogleClient) -> None:
         if not user_input:
             continue
 
+        # Refresh system prompt at start of each turn
+        system_prompt = get_effective_system_prompt(dynamic_instructions)
+
         if user_input.startswith("@"):
             if handle_async_action(
-                user_input, conversation_history, SYSTEM_PROMPT, MAX_CURRENT_CONTEXT_TOKENS
+                user_input,
+                conversation_history,
+                system_prompt,
+                MAX_CURRENT_CONTEXT_TOKENS,
+                dynamic_instructions,
             ):
                 continue
 
@@ -129,13 +157,13 @@ def run_agent(client: GoogleClient) -> None:
             client=client,
             model=GOOGLE_AGENT_MODEL,
             conversation_history=conversation_history,
-            system_prompt=SYSTEM_PROMPT,
+            system_prompt=system_prompt,
             max_tokens=MAX_CURRENT_CONTEXT_TOKENS,
         )
 
         # Build conversation context with system prompt once before the loop.
         # We rely on summarization instead of a fixed sliding window.
-        contents = [SYSTEM_PROMPT]
+        contents = [system_prompt]
         for msg in conversation_history:
             contents.append(msg["content"])
 
@@ -168,7 +196,7 @@ def run_agent(client: GoogleClient) -> None:
                     break
 
                 # Parse tool calls from the response
-                tool_calls = parse_tool_calls(response_text)
+                tool_calls = parse_tool_calls(response_text, dynamic_instructions)
 
                 # Extract text without tool calls for display
                 text_without_tools = extract_text_without_tool_calls(response_text)
@@ -205,11 +233,13 @@ def run_agent(client: GoogleClient) -> None:
                     client=client,
                     model=GOOGLE_AGENT_MODEL,
                     conversation_history=conversation_history,
-                    system_prompt=SYSTEM_PROMPT,
+                    system_prompt=system_prompt,
                     max_tokens=MAX_CURRENT_CONTEXT_TOKENS,
                 )
                 # Rebuild contents after compaction
-                contents = [SYSTEM_PROMPT]
+                # Refresh system prompt in case a tool updated dynamic instructions
+                system_prompt = get_effective_system_prompt(dynamic_instructions)
+                contents = [system_prompt]
                 for msg in conversation_history:
                     contents.append(msg["content"])
 
