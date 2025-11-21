@@ -76,22 +76,39 @@ GOOGLE_AGENT_MODEL = "gemini-flash-latest"
 MAX_CURRENT_CONTEXT_TOKENS = 10_000
 
 
-def get_effective_system_prompt(dynamic_instructions: list[str]) -> str:
-    """Build system prompt with dynamic instructions appended."""
-    if not dynamic_instructions:
-        return DEFAULT_SYSTEM_PROMPT
+def get_effective_system_prompt(dynamic_instructions: list[str], mode: str = "agent") -> str:
+    """Build system prompt with dynamic instructions and mode restrictions appended."""
+    prompt = DEFAULT_SYSTEM_PROMPT
 
-    dynamic_section = "<dynamic_system_prompt>\n"
-    for instruction in dynamic_instructions:
-        dynamic_section += f"- {instruction}\n"
-    dynamic_section += "</dynamic_system_prompt>\n"
+    # Add mode restrictions if in chat mode
+    if mode == "chat":
+        chat_restriction = (
+            "<mode_restriction>\n"
+            "🚫 CHAT MODE ACTIVE: You are in READ-ONLY mode.\n"
+            "- You CANNOT use: write_file, edit_file, delete_file, create_directory\n"
+            "- You CAN use: read_file, scan_codebase, grep_search, "
+            "execute_bash_command (read-only commands only)\n"
+            "- If the user asks you to modify files, politely explain you're in "
+            "chat mode and suggest '@mode agent'\n"
+            "</mode_restriction>\n"
+        )
+        prompt += chat_restriction
 
-    return DEFAULT_SYSTEM_PROMPT + dynamic_section
+    # Add dynamic instructions
+    if dynamic_instructions:
+        dynamic_section = "<dynamic_system_prompt>\n"
+        for instruction in dynamic_instructions:
+            dynamic_section += f"- {instruction}\n"
+        dynamic_section += "</dynamic_system_prompt>\n"
+        prompt += dynamic_section
+
+    return prompt
 
 
 def run_agent(client: GoogleClient) -> None:
     conversation_history = []
     dynamic_instructions: list[str] = []  # In-memory storage for dynamic rules
+    mode_state = {"current": "agent"}  # Default to agent mode (full capabilities)
 
     # Initial greeting
     try:
@@ -132,7 +149,7 @@ def run_agent(client: GoogleClient) -> None:
             continue
 
         # Refresh system prompt at start of each turn
-        system_prompt = get_effective_system_prompt(dynamic_instructions)
+        system_prompt = get_effective_system_prompt(dynamic_instructions, mode_state["current"])
 
         if user_input.startswith("@"):
             if handle_async_action(
@@ -141,6 +158,7 @@ def run_agent(client: GoogleClient) -> None:
                 system_prompt,
                 MAX_CURRENT_CONTEXT_TOKENS,
                 dynamic_instructions,
+                mode_state,
             ):
                 continue
 
@@ -238,7 +256,9 @@ def run_agent(client: GoogleClient) -> None:
                 )
                 # Rebuild contents after compaction
                 # Refresh system prompt in case a tool updated dynamic instructions
-                system_prompt = get_effective_system_prompt(dynamic_instructions)
+                system_prompt = get_effective_system_prompt(
+                    dynamic_instructions, mode_state["current"]
+                )
                 contents = [system_prompt]
                 for msg in conversation_history:
                     contents.append(msg["content"])

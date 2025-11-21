@@ -17,6 +17,7 @@ def print_async_help() -> None:
         "  @prompt <text>       – append instructions to the dynamic system prompt\n"
         "  @show_prompt         – show the current system prompt\n"
         "  @reset_prompt        – clear the dynamic system prompt\n"
+        "  @mode <agent|chat>   – switch between agent mode (full) and chat mode (read-only)\n"
         "  @help                – show this help message\n"
         "\n"
     )
@@ -72,12 +73,27 @@ def _print_system_prompt(prompt: str | None) -> None:
     print(f"\n📜 Current System Prompt:\n\n{prompt}\n")
 
 
+def _switch_mode(mode: str, mode_state: dict[str, str]) -> None:
+    """Switch between agent and chat mode."""
+    mode = mode.lower()
+    if mode not in {"agent", "chat"}:
+        print("\n⚠️  Usage: @mode <agent|chat>\n")
+        return
+    
+    mode_state["current"] = mode
+    if mode == "chat":
+        print("\n💬 Switched to CHAT mode (read-only: can't write/edit/delete files)\n")
+    else:
+        print("\n🤖 Switched to AGENT mode (full capabilities)\n")
+
+
 def handle_async_action(
     raw_input: str,
     conversation_history: list[dict[str, str]],
     system_prompt: str | None = None,
     max_tokens: int | None = None,
     dynamic_instructions: list[str] | None = None,
+    mode_state: dict[str, str] | None = None,
 ) -> bool:
     """Handle commands that start with '@' without pinging the model."""
     command, _, arguments = raw_input[1:].partition(" ")
@@ -121,6 +137,13 @@ def handle_async_action(
             _reset_prompt(dynamic_instructions)
         else:
             print("\n❌ Error: Dynamic instructions not available.\n")
+        return True
+
+    if command in {"mode", "m"}:
+        if mode_state is not None:
+            _switch_mode(arguments, mode_state)
+        else:
+            print("\n❌ Error: Mode state not available.\n")
         return True
 
     if command in {"help", "commands", "?"}:
