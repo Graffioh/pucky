@@ -79,6 +79,7 @@ Pucky can use the following tools to interact with your codebase:
 - **execute_bash_command(command)** - Execute a bash command
 - **scan_codebase(root_path)** - Scan and show the codebase structure
 - **grep_search(root_path, query, max_results)** - Search for text in the codebase
+- **update_system_prompt(instruction)** - Update the agent's system prompt with a new instruction (can be called by the agent itself)
 
 ### Actions
 
@@ -88,6 +89,10 @@ While the CLI is running you can execute async local commands prefixed with `@` 
 - `@tree <path_to_dir>` - show the file-tree project structure (defaults to current directory)
 - `@context` - print the current context length in tokens
 - `@tts` - speak the latest agent response using elevenlabs text-to-speech
+- `@prompt <text>` - append a custom instruction to the dynamic system prompt
+- `@show_prompt` - display the current system prompt (including dynamic instructions)
+- `@reset_prompt` - clear all dynamic system prompt instructions
+- `@mode <agent|chat>` - switch between agent mode (full capabilities) and chat mode (read-only)
 - `@help` - list all available async commands
 
 You can chain multiple `@file` commands and then type your actual question. The
